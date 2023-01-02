@@ -88,8 +88,8 @@ class Script(scripts.Script):
         assert p.n_iter == 1, "[DumpUnet] Batch count must be 1."
         assert p.batch_size == 1, "[DumpUnet] Batch size must be 1."
         assert layer is not None and layer != "", "[DumpUnet] <Layer> must not be empty."
-        assert 1 <= grid_x, "[DumpUnet] <Grid X> must not be positive integer."
-        assert 1 <= grid_y, "[DumpUnet] <Grid Y> must not be positive integer."
+        assert 1 <= grid_x, "[DumpUnet] <Grid X> must be positive integer."
+        assert 1 <= grid_y, "[DumpUnet] <Grid Y> must be positive integer."
         if path_on:
             assert path is not None and path != "", "[DumpUnet] <Output path> must not be empty."
         
