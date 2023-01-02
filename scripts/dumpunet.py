@@ -11,9 +11,6 @@ import modules.scripts as scripts
 from modules.processing import process_images, Processed, StableDiffusionProcessing
 from modules import shared
 
-re_num = re.compile(r"^\s*\+?\s*\d+\s*$")
-re_range = re.compile(r"^\s*(\+?\s*\d+)\s*-\s*(\+?\s*\d+)\s*(?:\(\s*\+?\s*(\d+)\s*\))?\s*$")
-
 class Script(scripts.Script):
     
     def title(self):
@@ -93,30 +90,7 @@ class Script(scripts.Script):
         if path_on:
             assert path is not None and path != "", "[DumpUnet] <Output path> must not be empty."
         
-        steps : list[int]|None = []
-        step_input_tokens = (step_input or "").split(",")
-        for token in step_input_tokens:
-            if token == "":
-                continue
-            m1 = re_num.fullmatch(token)
-            m2 = re_range.fullmatch(token)
-            if m1:
-                steps1 = eval("[" + m1.group(0) + "]")
-            elif m2:
-                n1 = eval(m2.group(1))
-                n2 = eval(m2.group(2))
-                n3 = eval(m2.group(3)) if m2.group(3) else 1
-                steps1 = list(range(n1, n2+1, n3))
-            else:
-                raise ValueError("[DumpUnet] Invalid input for <Image saving steps>.")
-            steps.extend(steps1)
-        
-        steps = list(set(steps))
-        if len(steps) == 0:
-            steps = None # all steps
-        else:
-            steps.sort()
-        
+        steps = retrieve_steps(step_input)
         grid_x = int(grid_x)
         grid_y = int(grid_y)
         
@@ -170,14 +144,6 @@ class Script(scripts.Script):
         handles = []
         handles.append(target.register_forward_hook(create_hook(features, layer)))
         
-        #for idx, mod in enumerate(input_blocks.children()):
-        #    handles.append(mod.register_forward_hook(create_hook(features, f"IN{idx:02}")))
-        #
-        #handles.append(middle_block.register_forward_hook(create_hook(features, "M00")))
-        #
-        #for idx, mod in enumerate(output_blocks.children()):
-        #    handles.append(mod.register_forward_hook(create_hook(features, f"OUT{idx:02}")))
-        
         t0 = int(time.time())
         try:
             proc = process_images(p)
@@ -185,27 +151,23 @@ class Script(scripts.Script):
             for handle in handles:
                 handle.remove()
         
-        if proc:
-            assert len(proc.images) == 1, f"[DumpUnet] internal (#images={len(proc.images)}))"
-            images = [proc.images[-1]]
+        assert len(proc.images) == 1, f"[DumpUnet] internal (#images={len(proc.images)}))"
+        images = [proc.images[-1]]
+        
+        for step, feature in enumerate(features, 1):
+            if shared.state.interrupted:
+                break
             
-            for step, feature in enumerate(features, 1):
-                if shared.state.interrupted:
-                    break
-                
-                tensors = feature["outputs"]
-                assert len(tensors.size()) == 4
-                for idx in range(tensors.size()[0]):
-                    # two same outputs???
-                    tensor = tensors[idx]
-                    basename = f"{layer}-{step:03}-{{ch:04}}-{t0}"
-                    canvases = process(tensor, grid_x, grid_y, tensor.size(), color, path, basename, path_on)
-                    images.extend(canvases)
-                    break
-            
-        else:
-            images = proc.images
-            
+            tensors = feature["outputs"]
+            assert len(tensors.size()) == 4
+            for idx in range(tensors.size()[0]):
+                # two same outputs???
+                tensor = tensors[idx]
+                basename = f"{layer}-{step:03}-{{ch:04}}-{t0}"
+                canvases = process(tensor, grid_x, grid_y, tensor.size(), color, path, basename, path_on)
+                images.extend(canvases)
+                break
+        
         N = lambda x: [x] * len(images)
         return Processed(
             p,
@@ -284,6 +246,39 @@ def process(tensor: Tensor,
         
         canvases.append(canvas)
     return canvases
+
+re_num = re.compile(r"^\s*\+?\s*\d+\s*$")
+re_range = re.compile(r"^\s*(\+?\s*\d+)\s*-\s*(\+?\s*\d+)\s*(?:\(\s*\+?\s*(\d+)\s*\))?\s*$")
+
+def retrieve_steps(input: str):
+    if input is None or input == "":
+        return None
+    
+    steps : list[int]|None = []
+    tokens = input.split(",")
+    for token in tokens:
+        if token == "":
+            continue
+        m1 = re_num.fullmatch(token)
+        m2 = re_range.fullmatch(token)
+        if m1:
+            steps1 = eval("[" + m1.group(0) + "]")
+        elif m2:
+            n1 = eval(m2.group(1))
+            n2 = eval(m2.group(2))
+            n3 = eval(m2.group(3)) if m2.group(3) else 1
+            steps1 = list(range(n1, n2+1, n3))
+        else:
+            raise ValueError("[DumpUnet] Invalid input for <Image saving steps>.")
+        steps.extend(steps1)
+    
+    steps = list(set(steps))
+    if len(steps) == 0:
+        steps = None # all steps
+    else:
+        steps.sort()
+    
+    return steps
 
 def tensor_to_image(array: np.ndarray, color: bool):
     # array := (-∞, ∞)
