@@ -59,11 +59,11 @@ class Script(scripts.Script):
         with gr.Blocks(elem_id="dumpunet"):
             layer = gr.Dropdown([f"IN{i:02}" for i in range(12)] + ["M00"] + [f"OUT{i:02}" for i in range(12)], label="Layer", value="M00", elem_id="dumpunet-layer")
             layer_setting_hidden = gr.HTML(json.dumps(LayerSettings), visible=False, elem_id="dumpunet-layer_setting")
-            steps = gr.Textbox(label="Image saving steps")
+            steps = gr.Textbox(label="Image saving steps", placeholder="eg. 1,5-20(+5)")
             color = gr.Checkbox(False, label="Use red/blue color map (red=POSITIVE, black=ZERO, blue=NEGATIVE)") 
             with gr.Blocks():
                 path_on = gr.Checkbox(False, label="Dump tensor to files")
-                path = gr.Textbox(label="Output path")
+                path = gr.Textbox(label="Output path", placeholder="eg. /home/hnmr/unet/")
             layer_info = gr.HTML(elem_id="dumpunet-layerinfo")
         
         return [layer, steps, color, path_on, path]
