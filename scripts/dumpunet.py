@@ -2,6 +2,8 @@ import os
 import time
 import json
 import re
+import math
+
 import numpy as np
 from torch import nn, Tensor
 import gradio as gr
@@ -10,6 +12,35 @@ from PIL import Image
 import modules.scripts as scripts
 from modules.processing import process_images, Processed, StableDiffusionProcessing
 from modules import shared
+
+LayerSettings = {
+    #            input shape   output shape
+    "IN00":   ( (   4, 8, 8), ( 320, 8, 8) ),
+    "IN01":   ( ( 320, 8, 8), ( 320, 8, 8) ),
+    "IN02":   ( ( 320, 8, 8), ( 320, 8, 8) ),
+    "IN03":   ( ( 320, 8, 8), ( 320, 4, 4) ),
+    "IN04":   ( ( 320, 4, 4), ( 640, 4, 4) ),
+    "IN05":   ( ( 640, 4, 4), ( 640, 4, 4) ),
+    "IN06":   ( ( 640, 4, 4), ( 640, 2, 2) ),
+    "IN07":   ( ( 640, 2, 2), (1280, 2, 2) ),
+    "IN08":   ( (1280, 2, 2), (1280, 2, 2) ),
+    "IN09":   ( (1280, 2, 2), (1280, 1, 1) ),
+    "IN10":   ( (1280, 1, 1), (1280, 1, 1) ),
+    "IN11":   ( (1280, 1, 1), (1280, 1, 1) ),
+    "M00":    ( (1280, 1, 1), (1280, 1, 1) ),
+    "OUT00":  ( (2560, 1, 1), (1280, 1, 1) ),
+    "OUT01":  ( (2560, 1, 1), (1280, 1, 1) ),
+    "OUT02":  ( (2560, 1, 1), (1280, 2, 2) ),
+    "OUT03":  ( (2560, 2, 2), (1280, 2, 2) ),
+    "OUT04":  ( (2560, 2, 2), (1280, 2, 2) ),
+    "OUT05":  ( (1920, 2, 2), (1280, 4, 4) ),
+    "OUT06":  ( (1920, 4, 4), ( 640, 4, 4) ),
+    "OUT07":  ( (1280, 4, 4), ( 640, 4, 4) ),
+    "OUT08":  ( ( 960, 4, 4), ( 640, 8, 8) ),
+    "OUT09":  ( ( 960, 8, 8), ( 320, 8, 8) ),
+    "OUT10":  ( ( 640, 8, 8), ( 320, 8, 8) ),
+    "OUT11":  ( ( 640, 8, 8), ( 320, 8, 8) ),
+}
 
 class Script(scripts.Script):
     
@@ -20,60 +51,21 @@ class Script(scripts.Script):
         return not is_img2img
     
     def ui(self, is_img2img):
-        settings = {
-            #            input shape   output shape
-            "IN00":   ( (   4, 8, 8), ( 320, 8, 8) ),
-            "IN01":   ( ( 320, 8, 8), ( 320, 8, 8) ),
-            "IN02":   ( ( 320, 8, 8), ( 320, 8, 8) ),
-            "IN03":   ( ( 320, 8, 8), ( 320, 4, 4) ),
-            "IN04":   ( ( 320, 4, 4), ( 640, 4, 4) ),
-            "IN05":   ( ( 640, 4, 4), ( 640, 4, 4) ),
-            "IN06":   ( ( 640, 4, 4), ( 640, 2, 2) ),
-            "IN07":   ( ( 640, 2, 2), (1280, 2, 2) ),
-            "IN08":   ( (1280, 2, 2), (1280, 2, 2) ),
-            "IN09":   ( (1280, 2, 2), (1280, 1, 1) ),
-            "IN10":   ( (1280, 1, 1), (1280, 1, 1) ),
-            "IN11":   ( (1280, 1, 1), (1280, 1, 1) ),
-            "M00":    ( (1280, 1, 1), (1280, 1, 1) ),
-            "OUT00":  ( (2560, 1, 1), (1280, 1, 1) ),
-            "OUT01":  ( (2560, 1, 1), (1280, 1, 1) ),
-            "OUT02":  ( (2560, 1, 1), (1280, 2, 2) ),
-            "OUT03":  ( (2560, 2, 2), (1280, 2, 2) ),
-            "OUT04":  ( (2560, 2, 2), (1280, 2, 2) ),
-            "OUT05":  ( (1920, 2, 2), (1280, 4, 4) ),
-            "OUT06":  ( (1920, 4, 4), ( 640, 4, 4) ),
-            "OUT07":  ( (1280, 4, 4), ( 640, 4, 4) ),
-            "OUT08":  ( ( 960, 4, 4), ( 640, 8, 8) ),
-            "OUT09":  ( ( 960, 8, 8), ( 320, 8, 8) ),
-            "OUT10":  ( ( 640, 8, 8), ( 320, 8, 8) ),
-            "OUT11":  ( ( 640, 8, 8), ( 320, 8, 8) ),
-        }
-        
         with gr.Blocks(elem_id="dumpunet"):
             layer = gr.Dropdown([f"IN{i:02}" for i in range(12)] + ["M00"] + [f"OUT{i:02}" for i in range(12)], label="Layer", value="M00", elem_id="dumpunet-layer")
-            layer_setting_hidden = gr.HTML(json.dumps(settings), visible=False, elem_id="dumpunet-layer_setting")
-            
-            with gr.Row():
-                grid_x = gr.Slider(1, 512, value=1, step=1, label="Grid X", elem_id="dumpunet-gridx")
-                grid_y = gr.Slider(1, 512, value=1, step=1, label="Grid Y", elem_id="dumpunet-gridy")
-            
+            layer_setting_hidden = gr.HTML(json.dumps(LayerSettings), visible=False, elem_id="dumpunet-layer_setting")
             steps = gr.Textbox(label="Image saving steps")
-            
             color = gr.Checkbox(False, label="Use red/blue color map (red=POSITIVE, black=ZERO, blue=NEGATIVE)") 
-            
             with gr.Blocks():
                 path_on = gr.Checkbox(False, label="Dump tensor to files")
                 path = gr.Textbox(label="Output path")
-            
             layer_info = gr.HTML(elem_id="dumpunet-layerinfo")
         
-        return [layer, grid_x, grid_y, steps, color, path_on, path]
+        return [layer, steps, color, path_on, path]
     
     def run(self,
             p: StableDiffusionProcessing,
             layer: str,
-            grid_x: float,
-            grid_y: float,
             step_input: str,
             color: bool,
             path_on: bool,
@@ -85,14 +77,11 @@ class Script(scripts.Script):
         assert p.n_iter == 1, "[DumpUnet] Batch count must be 1."
         assert p.batch_size == 1, "[DumpUnet] Batch size must be 1."
         assert layer is not None and layer != "", "[DumpUnet] <Layer> must not be empty."
-        assert 1 <= grid_x, "[DumpUnet] <Grid X> must be positive integer."
-        assert 1 <= grid_y, "[DumpUnet] <Grid Y> must be positive integer."
         if path_on:
             assert path is not None and path != "", "[DumpUnet] <Output path> must not be empty."
         
         steps = retrieve_steps(step_input)
-        grid_x = int(grid_x)
-        grid_y = int(grid_y)
+        grid_x, grid_y = get_grid_num(layer, p.width, p.height)
         
         unet = p.sd_model.model.diffusion_model # type: ignore
         
@@ -153,6 +142,8 @@ class Script(scripts.Script):
         
         assert len(proc.images) == 1, f"[DumpUnet] internal (#images={len(proc.images)}))"
         images = [proc.images[-1]]
+        
+        #import pdb; pdb.set_trace()
         
         for step, feature in enumerate(features, 1):
             if shared.state.interrupted:
@@ -279,6 +270,33 @@ def retrieve_steps(input: str):
         steps.sort()
     
     return steps
+
+def get_grid_num(layer: str, width: int, height: int):
+    assert layer is not None and layer != "", "[DumpUnet] <Layer> must not be empty."
+    assert layer in LayerSettings, "[DumpUnet] Invalid <Layer> value."
+    _, (ch, mh, mw) = LayerSettings[layer]
+    iw = math.ceil(width  / 64)
+    ih = math.ceil(height / 64)
+    w = mw * iw
+    h = mh * ih 
+    # w : width of a feature map
+    # h : height of a feature map
+    # ch: a number of a feature map
+    n = [w, h]
+    while ch % 2 == 0:
+        n[n[0]>n[1]] *= 2
+        ch //= 2
+    n[n[0]>n[1]] *= ch
+    if n[0] > n[1]:
+        while n[0] > n[1] * 2 and (n[0] // w) % 2 == 0:
+            n[0] //= 2
+            n[1] *= 2
+    else:
+        while n[0] * 2 < n[1] and (n[1] // h) % 2 == 0:
+            n[0] *= 2
+            n[1] //= 2
+    
+    return [n[0] // w, n[1] // h]
 
 def tensor_to_image(array: np.ndarray, color: bool):
     # array := (-∞, ∞)

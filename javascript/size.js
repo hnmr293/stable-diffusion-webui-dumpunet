@@ -48,26 +48,17 @@ onUiUpdate(() => {
             const
                 w = +width_slider.value,
                 h = +height_slider.value,
-                steps = +steps_slider.value,
                 iw = Math.max(1, Math.ceil(w / 64)),
-                ih = Math.max(1, Math.ceil(h / 64)),
-                ch = info[1][0],
-                nx = +app.querySelector('#dumpunet-gridx input').value,
-                ny = +app.querySelector('#dumpunet-gridy input').value,
-                n = Math.ceil(ch / (nx * ny));
+                ih = Math.max(1, Math.ceil(h / 64));
             info[0][1] *= ih;
             info[0][2] *= iw;
             info[1][1] *= ih;
             info[1][2] *= iw;
             app.querySelector('#dumpunet-layerinfo').innerHTML = `
 [Layer Info]<br/>
-Name:&nbsp;&nbsp;&nbsp;<b>${layer}</b><br/>
+Name:&nbsp;&nbsp;&nbsp;${layer}<br/>
 Input:&nbsp;&nbsp;(${info[0].join(',')})<br/>
 Outout:&nbsp;(${info[1].join(',')})<br/>
-[Output Images Info]<br/>
-N:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${n} x ${steps}steps<br/>
-Width:&nbsp;&nbsp;${nx == 1 ? info[1][2] : ((info[1][2] + 1) * nx - 1)}px<br/>
-Height:&nbsp;${ny == 1 ? info[1][1] : ((info[1][1] + 1) * ny - 1)}px<br/>
 `.trim();
         };
 
