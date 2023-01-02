@@ -3,6 +3,7 @@ import time
 import json
 import re
 import math
+from collections import defaultdict
 
 import numpy as np
 from torch import nn, Tensor
@@ -44,6 +45,10 @@ LayerSettings = {
 
 class Script(scripts.Script):
     
+    def __init__(self) -> None:
+        super().__init__()
+        self.steps_on_batch = 0
+    
     def title(self):
         return "Dump U-net features"
     
@@ -63,6 +68,9 @@ class Script(scripts.Script):
         
         return [layer, steps, color, path_on, path]
     
+    def process_batch(self, p, *args, **kwargs):
+        self.steps_on_batch = 0
+    
     def run(self,
             p: StableDiffusionProcessing,
             layer: str,
@@ -71,11 +79,32 @@ class Script(scripts.Script):
             path_on: bool,
             path: str):
         
+        # Currently class scripts.Script does not support {post}process{_batch} hooks
+        # for non-AlwaysVisible scripts.
+        # So we have no legal method to access current batch number.
+        
+        # ugly hack
+        if p.scripts is not None:
+            p.scripts.alwayson_scripts.append(self)
+            # now `process_batch` will be called from modules.processing.process_images
+        
+        try:
+            return self.run_impl(p, layer,step_input, color, path_on, path)
+        finally:
+            if p.scripts is not None:
+                p.scripts.alwayson_scripts.remove(self)
+    
+    def run_impl(self,
+                 p: StableDiffusionProcessing,
+                 layer: str,
+                 step_input: str,
+                 color: bool,
+                 path_on: bool,
+                 path: str):
+        
         IN = [ f"IN{i:02}" for i in range(12) ]
         OUT = [ f"OUT{i:02}" for i in range(12) ]
         
-        assert p.n_iter == 1, "[DumpUnet] Batch count must be 1."
-        assert p.batch_size == 1, "[DumpUnet] Batch size must be 1."
         assert layer is not None and layer != "", "[DumpUnet] <Layer> must not be empty."
         if path_on:
             assert path is not None and path != "", "[DumpUnet] <Output path> must not be empty."
@@ -114,20 +143,22 @@ class Script(scripts.Script):
         else:
             assert False, "[DumpUnet] Invalid <Layer> value."
         
-        features = []
-        current_step = [0]
+        features = defaultdict(list)
         def create_hook(features, name):
             def forward_hook(module, inputs, outputs):
                 #print(f"{name}\t{inputs[0].size()}\t{outputs.size()}")
-                current_step[0] += 1
-                if steps is None or current_step[0] in steps:
-                    features.append({
-                        "steps": current_step[0],
-                        "name": name,
-                        "input_dims": [ x.size() for x in inputs if type(x) == Tensor ],
-                        "output_dims": outputs.size(),
-                        "outputs": outputs.detach().clone(),
-                    })
+                self.steps_on_batch += 1
+                if steps is None or self.steps_on_batch in steps:
+                    list = features[self.steps_on_batch]
+                    outputs = outputs.detach().clone()
+                    for idx in range(outputs.size()[0] // 2): # two same outputs per sample???
+                        output = outputs[idx]
+                        list.append({
+                            "name": name,
+                            "input_dims": [ x.size() for x in inputs if type(x) == Tensor ],
+                            "output_dims": output.size(),
+                            "output": output,
+                        })
             return forward_hook
         
         handles = []
@@ -140,37 +171,75 @@ class Script(scripts.Script):
             for handle in handles:
                 handle.remove()
         
-        assert len(proc.images) == 1, f"[DumpUnet] internal (#images={len(proc.images)}))"
-        images = [proc.images[-1]]
-        
-        #import pdb; pdb.set_trace()
-        
-        for step, feature in enumerate(features, 1):
-            if shared.state.interrupted:
-                break
+        if shared.state.interrupted:
+            return proc
             
-            tensors = feature["outputs"]
-            assert len(tensors.size()) == 4
-            for idx in range(tensors.size()[0]):
-                # two same outputs???
-                tensor = tensors[idx]
-                basename = f"{layer}-{step:03}-{{ch:04}}-{t0}"
-                canvases = process(tensor, grid_x, grid_y, tensor.size(), color, path, basename, path_on)
-                images.extend(canvases)
-                break
+        index0 = proc.index_of_first_image
+        preview_images, rest_images = proc.images[:index0], proc.images[index0:]
         
-        N = lambda x: [x] * len(images)
+        assert rest_images is not None and len(rest_images) != 0, f"[DumpUnet] empty output?"
+        
+        # Now `rest_images` is the list of the images we are interested in.
+        
+        images = []
+        seeds = []
+        subseeds = []
+        prompts = []
+        neg_prompts = []
+        infotexts = []
+        
+        def add_image(image, seed, subseed, prompt, neg_prompt, infotext, feature_steps=None):
+            images.append(image)
+            seeds.append(seed)
+            subseeds.append(subseed)
+            prompts.append(prompt)
+            neg_prompts.append(neg_prompt)
+            info = infotext
+            if feature_steps is not None:
+                if info:
+                    info += "\n"
+                info += f"Feature Steps: {feature_steps}"
+            infotexts.append(info)
+        
+        for image in preview_images:
+            preview_info = proc.infotexts.pop(0)
+            add_image(image, proc.seed, proc.subseed, proc.prompt, proc.negative_prompt, preview_info)
+        
+        assert all([
+            len(rest_images) == len(x) for x 
+            in [proc.all_seeds, proc.all_subseeds, proc.all_prompts, proc.all_negative_prompts, proc.infotexts]
+            ]), f"[DumpUnet] #images={len(rest_images)}, #seeds={len(proc.all_seeds)}, #subseeds={len(proc.all_subseeds)}, #pr={len(proc.all_prompts)}, #npr={len(proc.all_negative_prompts)}, #info={len(proc.infotexts)}"
+        
+        for idx, (image, *args) in enumerate(zip(rest_images, proc.all_seeds, proc.all_subseeds, proc.all_prompts, proc.all_negative_prompts, proc.infotexts)):
+            add_image(image, *args)
+            
+            for step, fs in features.items():
+                assert len(rest_images) == len(fs), f"[DumpUnet] #images={len(rest_images)}, #fs={len(fs)} @ index={idx}, step={step}."
+                feature = fs[idx]
+                
+                if shared.state.interrupted:
+                    break
+            
+                tensor = feature["output"]
+                assert len(tensor.size()) == 3
+                
+                basename = f"{idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
+                canvases = process(tensor, grid_x, grid_y, tensor.size(), color, path, basename, path_on)
+                
+                for canvas in canvases:
+                    add_image(canvas, *args, feature_steps=step)
+        
         return Processed(
             p,
             images, 
             seed=proc.seed,
             info=proc.info,
             subseed=proc.subseed,
-            all_seeds=N(proc.seed),
-            all_subseeds=N(proc.subseed),
-            all_prompts=N(proc.prompt),
-            all_negative_prompts=N(proc.negative_prompt),
-            infotexts=[proc.infotexts[0]] + [f"{proc.infotexts[0]}\nFeature Steps: {n}" for n in (steps or range(1, current_step[0]+1))]
+            all_seeds=seeds,
+            all_subseeds=subseeds,
+            all_prompts=prompts,
+            all_negative_prompts=neg_prompts,
+            infotexts=infotexts
         )
 
 def process(tensor: Tensor,
