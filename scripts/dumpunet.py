@@ -8,7 +8,8 @@ from modules.processing import process_images, StableDiffusionProcessing
 from modules import shared
 
 from scripts.dumpunet import layerinfo
-from scripts.dumpunet.feature_extractor import FeatureExtractor
+from scripts.dumpunet.features.feature_extractor import FeatureExtractor
+from scripts.dumpunet.layer_prompt.prompt import LayerPrompt
 from scripts.dumpunet.report import message as E
 from scripts.dumpunet.utils import *
 
@@ -159,27 +160,28 @@ class Script(scripts.Script):
             path if path_on else None
         )
         
-        if layerprompt_enabled:
-            
-            # ...
-            
-            if layerprompt_diff_enabled:
-                
-                # ...
-                
-                if diff_path_on:
-                    assert diff_path is not None and diff_path != "", E("<Output path> must not be empty.")
-                    # mkdir -p path
-                    if os.path.exists(diff_path):
-                        assert os.path.isdir(diff_path), E("<Output path> already exists and is not a directory.")
-                    else:
-                        os.makedirs(diff_path, exist_ok=True)
-                    
-                    # ...
-                    
-        ex.setup(p)
+        lp = LayerPrompt(
+            layerprompt_enabled,
+        )
         
-        with ex:
+        #if layerprompt_diff_enabled:
+        #    
+        #    # ...
+        #    
+        #    if diff_path_on:
+        #        assert diff_path is not None and diff_path != "", E("<Output path> must not be empty.")
+        #        # mkdir -p path
+        #        if os.path.exists(diff_path):
+        #            assert os.path.isdir(diff_path), E("<Output path> already exists and is not a directory.")
+        #        else:
+        #            os.makedirs(diff_path, exist_ok=True)
+        #        
+        #        # ...
+                    
+        
+        with ex, lp:
+            lp.setup(p) # replace U-Net forward, and...
+            ex.setup(p) # hook the replaced forward
             proc = process_images(p)
             # ex.__exit__ does clean up hooks
         

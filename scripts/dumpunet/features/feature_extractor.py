@@ -12,7 +12,7 @@ from modules.processing import Processed, StableDiffusionProcessing
 from modules import shared
 
 from scripts.dumpunet import layerinfo
-from scripts.dumpunet.features import FeatureInfo, Features
+from scripts.dumpunet.features.featureinfo import FeatureInfo, Features
 from scripts.dumpunet.ui import retrieve_layers, retrieve_steps
 from scripts.dumpunet.report import message as E
 from scripts.dumpunet.utils import *
