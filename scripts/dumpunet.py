@@ -4,11 +4,11 @@ import json
 import gradio as gr
 
 import modules.scripts as scripts
-from modules.processing import process_images, Processed, StableDiffusionProcessing
+from modules.processing import process_images, StableDiffusionProcessing
 from modules import shared
 
 from scripts.dumpunet import layerinfo
-from scripts.dumpunet.features import FeatureExtractor
+from scripts.dumpunet.feature_extractor import FeatureExtractor
 from scripts.dumpunet.report import message as E
 from scripts.dumpunet.utils import *
 
@@ -71,27 +71,27 @@ class Script(scripts.Script):
                 with gr.Accordion("Selected Layer Info", open=False):
                     layer_info = gr.HTML(elem_id="dumpunet-layerinfo")
         
-            #with gr.Group(elem_id="dumpunet-layerprompt"):
-            #    layerprompt_enabled = gr.Checkbox(
-            #        label="Enable Layer Prompt",
-            #        value=False
-            #    )
-            #    
-            #    with gr.Group(elem_id="dumpunet-layerprompt-diff"):
-            #        layerprompt_diff_enabled = gr.Checkbox(
-            #            label="Output difference map of U-Net features between with and without Layer Prompt",
-            #            value=False
-            #        )
-            #            
-            #        diff_path_on = gr.Checkbox(
-            #            False,
-            #            label="Dump difference tensors to files"
-            #        )
-            #        
-            #        diff_path = gr.Textbox(
-            #            label="Output path",
-            #            placeholder="eg. /home/hnmr/unet/"
-            #        )
+            with gr.Group(elem_id="dumpunet-layerprompt"):
+                layerprompt_enabled = gr.Checkbox(
+                    label="Enable Layer Prompt",
+                    value=False
+                )
+                
+                with gr.Group(elem_id="dumpunet-layerprompt-diff"):
+                    layerprompt_diff_enabled = gr.Checkbox(
+                        label="Output difference map of U-Net features between with and without Layer Prompt",
+                        value=False
+                    )
+                        
+                    diff_path_on = gr.Checkbox(
+                        False,
+                        label="Dump difference tensors to files"
+                    )
+                    
+                    diff_path = gr.Textbox(
+                        label="Output path",
+                        placeholder="eg. /home/hnmr/unet/"
+                    )
                         
         return [
             unet_features_enabled,
@@ -100,10 +100,10 @@ class Script(scripts.Script):
             color,
             path_on,
             path,
-            #layerprompt_enabled,
-            #layerprompt_diff_enabled,
-            #diff_path_on,
-            #diff_path,
+            layerprompt_enabled,
+            layerprompt_diff_enabled,
+            diff_path_on,
+            diff_path,
         ]
     
     def process(self, p, *args):
@@ -141,13 +141,13 @@ class Script(scripts.Script):
             color: bool,
             path_on: bool,
             path: str,
-            #layerprompt_enabled: bool,
-            #layerprompt_diff_enabled: bool,
-            #diff_path_on: bool,
-            #diff_path: str,
+            layerprompt_enabled: bool,
+            layerprompt_diff_enabled: bool,
+            diff_path_on: bool,
+            diff_path: str,
     ):
                   
-        if not unet_features_enabled :#and not layerprompt_enabled:
+        if not unet_features_enabled and not layerprompt_enabled:
             return process_images(p)
         
         ex = FeatureExtractor(
@@ -159,23 +159,23 @@ class Script(scripts.Script):
             path if path_on else None
         )
         
-        #if layerprompt_enabled:
-        #    
-        #    # ...
-        #    
-        #    if layerprompt_diff_enabled:
-        #        
-        #        # ...
-        #        
-        #        if diff_path_on:
-        #            assert diff_path is not None and diff_path != "", E("<Output path> must not be empty.")
-        #            # mkdir -p path
-        #            if os.path.exists(diff_path):
-        #                assert os.path.isdir(diff_path), E("<Output path> already exists and is not a directory.")
-        #            else:
-        #                os.makedirs(diff_path, exist_ok=True)
-        #            
-        #            # ...
+        if layerprompt_enabled:
+            
+            # ...
+            
+            if layerprompt_diff_enabled:
+                
+                # ...
+                
+                if diff_path_on:
+                    assert diff_path is not None and diff_path != "", E("<Output path> must not be empty.")
+                    # mkdir -p path
+                    if os.path.exists(diff_path):
+                        assert os.path.isdir(diff_path), E("<Output path> already exists and is not a directory.")
+                    else:
+                        os.makedirs(diff_path, exist_ok=True)
+                    
+                    # ...
                     
         ex.setup(p)
         
