@@ -88,6 +88,8 @@ class Script(scripts.Script):
         
         layers = retrieve_layers(layer_input)
         steps = retrieve_steps(step_input)
+        if steps is None:
+            steps = list(range(1, p.steps+1))
         
         unet = p.sd_model.model.diffusion_model # type: ignore
         
@@ -95,10 +97,12 @@ class Script(scripts.Script):
         #input_blocks  : nn.modules.container.ModuleList
         #middle_block : ldm.modules.diffusionmodules.openaimodel.TimestepEmbedSequential
         #output_blocks : nn.modules.container.ModuleList
+        #out_ : nn.modules.container.Sequential
         #time_embed = unet.time_embed
         #input_blocks = unet.input_blocks
         #middle_block = unet.middle_block
         #output_blocks = unet.output_blocks
+        #out_ = unet.out
         #summary(unet, (4, 512, 512))
         
         # mkdir -p path
@@ -119,7 +123,7 @@ class Script(scripts.Script):
                         layername: str):
             def forward_hook(module, inputs, outputs):
                 #print(f"{layername}\t{inputs[0].size()}\t{outputs.size()}")
-                if steps is None or self.steps_on_batch in steps:
+                if self.steps_on_batch in steps:
                     images_per_batch = outputs.size()[0] // 2 # two same outputs per sample???
                     for image_index, output in enumerate(
                         outputs.detach().clone()[:images_per_batch],
@@ -192,6 +196,8 @@ class Script(scripts.Script):
         assert len(rest_images) == len(sorted_step_features), E(f"#images={len(rest_images)}, #features={len(sorted_step_features)}")
         
         t0 = int(time.time()) # for binary files' name
+        shared.total_tqdm.clear()
+        shared.total_tqdm.updateTotal(len(sorted_step_features) * len(steps) * len(layers))
         for idx, (image, step_features, *args) in enumerate(zip(rest_images, sorted_step_features, proc.all_seeds, proc.all_subseeds, proc.all_prompts, proc.all_negative_prompts, proc.infotexts)):
             step_features : defaultdict[int, Features]
             
@@ -212,6 +218,8 @@ class Script(scripts.Script):
                     
                     for canvas in canvases:
                         add_image(canvas, *args, layername=layer, feature_steps=step)
+                    
+                    shared.total_tqdm.update()
         
         return Processed(
             p,
@@ -308,7 +316,7 @@ def get_unet_layer(unet, layername: str) -> nn.modules.Module:
 
 def get_grid_num(layer: str, width: int, height: int):
     assert layer is not None and layer != "", E("<Layers> must not be empty.")
-    assert layer in layerinfo.Settings, E("Invalid <Layers> value.")
+    assert layer in layerinfo.Settings, E(f"Invalid <Layers> value: {layer}.")
     _, (ch, mh, mw) = layerinfo.Settings[layer]
     iw = math.ceil(width  / 64)
     ih = math.ceil(height / 64)
