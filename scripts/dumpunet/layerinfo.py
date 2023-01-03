@@ -2,28 +2,29 @@
 utilities for layer operation
 """
 
-Names_IN : tuple[str] = (
-    # "IN@@",
+Names_IN : tuple[str, ...] = (
     *[f"IN{n:02}" for n in range(12)],
 )
 
-Names_M : tuple[str] = (
+Names_M : tuple[str, ...] = (
     "M00",
 )
 
-Names_OUT : tuple[str] = (
+Names_OUT : tuple[str, ...] = (
     *[f"OUT{n:02}" for n in range(12)],
-    # "OUT$$",
 )
 
-Names : tuple[str] = (
+Names : tuple[str, ...] = (
+    #"IN@@",
     *Names_IN,
     *Names_M,
     *Names_OUT,
+    #"OUT$$",
 )
 
 Settings : dict[str,tuple[tuple[int,int,int],tuple[int,int,int]]] = {
     #            input shape   output shape
+    #"IN@@":   ( (   0, 0, 0), (   4, 8, 8) ),
     "IN00":   ( (   4, 8, 8), ( 320, 8, 8) ),
     "IN01":   ( ( 320, 8, 8), ( 320, 8, 8) ),
     "IN02":   ( ( 320, 8, 8), ( 320, 8, 8) ),
@@ -49,6 +50,7 @@ Settings : dict[str,tuple[tuple[int,int,int],tuple[int,int,int]]] = {
     "OUT09":  ( ( 960, 8, 8), ( 320, 8, 8) ),
     "OUT10":  ( ( 640, 8, 8), ( 320, 8, 8) ),
     "OUT11":  ( ( 640, 8, 8), ( 320, 8, 8) ),
+    #"OUT$$":  ( (   0, 0, 0), (   4, 8, 8) ),
 }
 
 assert set(Names) == set(Settings.keys()), f"Names={Names}, Settings={Settings.keys()}"
@@ -79,7 +81,7 @@ def name(index: int) -> str|None:
     
     return None
 
-def _index(layername: str, layers: tuple[str]) -> int|None:
+def _index(layername: str, layers: tuple[str,...]) -> int|None:
     if layername in layers:
         return layers.index(layername)
     else:

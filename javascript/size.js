@@ -51,6 +51,7 @@ onUiUpdate(() => {
         ];
 
         const parse_layers_token = token => {
+            //const layer1 = String.raw`((?:IN|OUT)\d\d|M00|IN@@|OUT\$\$)`;
             const layer1 = String.raw`((?:IN|OUT)\d\d|M00)`;
             const re_layer = new RegExp(String.raw`^\s*${layer1}\s*$`)
             const re_range = new RegExp(String.raw`^\s*${layer1}\s*-\s*${layer1}\s*(?:\(\s*\+?\s*(\d+)\s*\))?\s*$`)

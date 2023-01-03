@@ -24,7 +24,7 @@ class Features:
         if isinstance(layer, int):
             return self.get_by_index(layer)
         elif isinstance(layer, str):
-            return self.get_by_name
+            return self.get_by_name(layer)
         else:
             raise ValueError(E(f"invalid type: {type(layer)}"))
     

@@ -3,7 +3,7 @@ import re
 from scripts.dumpunet import layerinfo
 from scripts.dumpunet.report import message as E
 
-#re_layer_pat = r"((?:IN|OUT)(?:\d\d|@@|\$\$))"
+#re_layer_pat = r"((?:IN|OUT)\d\d|M00|IN@@|OUT\$\$)"
 re_layer_pat = r"((?:IN|OUT)\d\d|M00)"
 re_layer = re.compile(rf"^\s*{re_layer_pat}\s*$")
 re_layer_range = re.compile(rf"^\s*{re_layer_pat}\s*-\s*{re_layer_pat}\s*(?:\(\s*\+?\s*(\d+)\s*\))?\s*$")
