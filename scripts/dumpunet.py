@@ -18,6 +18,7 @@ from modules.processing import process_images, Processed, StableDiffusionProcess
 from modules import shared
 
 from scripts.dumpunet import layerinfo
+from scripts.dumpunet.report import message as E
 
 @dataclass
 class FeatureInfo:
@@ -39,7 +40,7 @@ class Features:
         elif isinstance(layer, str):
             return self.get_by_name
         else:
-            raise ValueError(f"invalid type: {type(layer)}")
+            raise ValueError(E(f"invalid type: {type(layer)}"))
     
     def __iter__(self):
         return sorted_items(self.features)
@@ -62,7 +63,7 @@ class Features:
         if isinstance(layer, int):
             name = layerinfo.name(layer)
             if name is None:
-                raise ValueError(f"invalid layer name: {layer}")
+                raise ValueError(E(f"invalid layer name: {layer}"))
             layer = name
         self.features[layer] = info
 
@@ -129,9 +130,9 @@ class Script(scripts.Script):
                  path_on: bool,
                  path: str):
         
-        assert layer_input is not None and layer_input != "", "[DumpUnet] <Layers> must not be empty."
+        assert layer_input is not None and layer_input != "", E("<Layers> must not be empty.")
         if path_on:
-            assert path is not None and path != "", "[DumpUnet] <Output path> must not be empty."
+            assert path is not None and path != "", E("<Output path> must not be empty.")
         
         layers = retrieve_layers(layer_input)
         steps = retrieve_steps(step_input)
@@ -151,7 +152,7 @@ class Script(scripts.Script):
         # mkdir -p path
         if path_on:
             if os.path.exists(path):
-                assert os.path.isdir(path), "[DumpUnet] <Output path> already exists and is not a directory."
+                assert os.path.isdir(path), E("<Output path> already exists and is not a directory.")
             else:
                 os.makedirs(path, exist_ok=True)
         
@@ -197,7 +198,7 @@ class Script(scripts.Script):
         index0 = proc.index_of_first_image
         preview_images, rest_images = proc.images[:index0], proc.images[index0:]
         
-        assert rest_images is not None and len(rest_images) != 0, f"[DumpUnet] empty output?"
+        assert rest_images is not None and len(rest_images) != 0, E("empty output?")
         
         # Now `rest_images` is the list of the images we are interested in.
         
@@ -233,10 +234,10 @@ class Script(scripts.Script):
         assert all([
             len(rest_images) == len(x) for x 
             in [proc.all_seeds, proc.all_subseeds, proc.all_prompts, proc.all_negative_prompts, proc.infotexts]
-            ]), f"[DumpUnet] #images={len(rest_images)}, #seeds={len(proc.all_seeds)}, #subseeds={len(proc.all_subseeds)}, #pr={len(proc.all_prompts)}, #npr={len(proc.all_negative_prompts)}, #info={len(proc.infotexts)}"
+            ]), E(f"#images={len(rest_images)}, #seeds={len(proc.all_seeds)}, #subseeds={len(proc.all_subseeds)}, #pr={len(proc.all_prompts)}, #npr={len(proc.all_negative_prompts)}, #info={len(proc.infotexts)}")
         
         sorted_step_features = list(sorted_values(all_features))
-        assert len(rest_images) == len(sorted_step_features), f"[DumpUnet] #images={len(rest_images)}, #features={len(sorted_step_features)}"
+        assert len(rest_images) == len(sorted_step_features), E(f"#images={len(rest_images)}, #features={len(sorted_step_features)}")
         
         t0 = int(time.time()) # for binary files' name
         for idx, (image, step_features, *args) in enumerate(zip(rest_images, sorted_step_features, proc.all_seeds, proc.all_subseeds, proc.all_prompts, proc.all_negative_prompts, proc.infotexts)):
@@ -351,7 +352,7 @@ def retrieve_layers(input: str) -> list[str]:
     def index(name: str):
         v = layerinfo.index(name)
         if v is None:
-            raise ValueError(f"[DumpUnet] Invalid layer name: {name}")
+            raise ValueError(E(f"Invalid layer name: {name}"))
         return v
     
     result : list[int]|None = []
@@ -369,7 +370,7 @@ def retrieve_layers(input: str) -> list[str]:
             step = eval(m2.group(3)) if m2.group(3) else 1
             result.extend(range(lay1, lay2+1, step))
         else:
-            raise ValueError(f"[DumpUnet] Invalid layer name: {token}")
+            raise ValueError(E(f"Invalid layer name: {token}"))
         
     result = list(set(result))
     if len(result) == 0:
@@ -390,7 +391,7 @@ def get_unet_layer(unet, layername: str) -> nn.modules.Module:
     if idx is not None:
         return unet.output_blocks[idx]
     
-    raise ValueError(f"[DumpUnet] Invalid layer name: {layername}")
+    raise ValueError(E(f"Invalid layer name: {layername}"))
 
 re_num = re.compile(r"^\s*\+?\s*\d+\s*$")
 re_range = re.compile(r"^\s*(\+?\s*\d+)\s*-\s*(\+?\s*\d+)\s*(?:\(\s*\+?\s*(\d+)\s*\))?\s*$")
@@ -414,7 +415,7 @@ def retrieve_steps(input: str):
             n3 = eval(m2.group(3)) if m2.group(3) else 1
             steps1 = list(range(n1, n2+1, n3))
         else:
-            raise ValueError("[DumpUnet] Invalid input for <Image saving steps>.")
+            raise ValueError(E(f"Invalid input for <Image saving steps>: {token}."))
         steps.extend(steps1)
     
     steps = list(set(steps))
@@ -426,8 +427,8 @@ def retrieve_steps(input: str):
     return steps
 
 def get_grid_num(layer: str, width: int, height: int):
-    assert layer is not None and layer != "", "[DumpUnet] <Layers> must not be empty."
-    assert layer in layerinfo.Settings, "[DumpUnet] Invalid <Layers> value."
+    assert layer is not None and layer != "", E("<Layers> must not be empty.")
+    assert layer in layerinfo.Settings, E("Invalid <Layers> value.")
     _, (ch, mh, mw) = layerinfo.Settings[layer]
     iw = math.ceil(width  / 64)
     ih = math.ceil(height / 64)
