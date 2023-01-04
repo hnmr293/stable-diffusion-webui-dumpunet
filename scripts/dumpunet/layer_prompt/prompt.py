@@ -1,6 +1,7 @@
 # Thanks for kohya.S
 # https://note.com/kohya_ss/n/n93b7c01b0547
 
+import sys
 from typing import Callable, Any
 
 import torch
@@ -10,6 +11,7 @@ from modules.processing import StableDiffusionProcessing
 from modules import devices, prompt_parser
 
 from scripts.dumpunet.layer_prompt.generator import LayerPromptGenerator, LayerPrompts
+from scripts.dumpunet.layer_prompt.parser import BadPromptError
 
 class LayerPrompt:
     
@@ -33,7 +35,8 @@ class LayerPrompt:
     # hooker
     fw: Callable|None
     
-    def __init__(self, enabled: bool):
+    def __init__(self, runner, enabled: bool):
+        self._runner = runner
         self._enabled = enabled
         self.o_c = self.o_uc = ""
         self.o_fw = self.model = self.c = self.uc = self.fw = None
@@ -53,8 +56,16 @@ class LayerPrompt:
         self.o_uc = p.all_negative_prompts[0] if len(p.all_negative_prompts or []) > 0 else p.negative_prompt # type: ignore
         
         gen = LayerPromptGenerator()
-        self.c = gen.generate(self.o_c)
-        self.uc = gen.generate(self.o_uc)
+        
+        try:
+            self.c = gen.generate(self.o_c)
+            self.uc = gen.generate(self.o_uc)
+        except BadPromptError as pe:
+            self._runner.notify_error(pe)
+            print("\033[31m", file=sys.stderr, end="", flush=False)
+            print(pe.message(), file=sys.stderr, flush=False)
+            print("\033[0m", file=sys.stderr, end="")
+            raise ValueError(f"Prompt syntax error at pos={pe.pos}. See stderr for details.") from None
         
         print("=" * 80)
         print("Layer Prompts")

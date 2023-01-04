@@ -118,8 +118,8 @@ class LayerPromptParser:
                     # range
                     l_idx = layerinfo.index(left[1])
                     r_idx = layerinfo.index(right[1])
-                    if l_idx is None: bad_prompt(s, left[0])
-                    if r_idx is None: bad_prompt(s, right[0])
+                    if l_idx is None: bad_prompt(s, left[0], f"Unknown layer name: {left[1]}")
+                    if r_idx is None: bad_prompt(s, right[0], f"Unknown layer name: {right[1]}")
                     if l_idx > r_idx:
                         i_idx, r_idx = r_idx, l_idx
                     for idx in range(l_idx, r_idx+1):
@@ -128,7 +128,7 @@ class LayerPromptParser:
                     rest = content[1]
                 else:
                     idx = layerinfo.index(str(right))
-                    if idx is None: bad_prompt(s, left)
+                    if idx is None: bad_prompt(s, left, f"Unknown layer name: {right}")
                     contents[idx] = content[1]
         
         return list(map(lambda x: rest if x is None else x, contents))
