@@ -1,3 +1,4 @@
+import os
 import time
 import json
 
@@ -5,13 +6,13 @@ import gradio as gr
 
 import modules.scripts as scripts
 from modules.processing import process_images, fix_seed, StableDiffusionProcessing, Processed
-from modules import shared
 
 from scripts.dumpunet import layerinfo
 from scripts.dumpunet.features.extractor import FeatureExtractor
-from scripts.dumpunet.features.process import feature_diff, tensor_to_grid_images
+from scripts.dumpunet.features.process import feature_diff, tensor_to_grid_images, save_tensor
 from scripts.dumpunet.layer_prompt.prompt import LayerPrompt
 from scripts.dumpunet.layer_prompt.parser import BadPromptError
+from scripts.dumpunet.report import message as E
 
 class Script(scripts.Script):
     
@@ -218,8 +219,15 @@ class Script(scripts.Script):
                 proc1.comments
             )
             
-            #t0 = int(time.time())
-            #basename = f"{img_idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
+            if diff_path_on:
+                assert diff_path is not None and diff_path != "", E("<Output path> must not be empty.")
+                # mkdir -p path
+                if os.path.exists(diff_path):
+                    assert os.path.isdir(diff_path), E("<Output path> already exists and is not a directory.")
+                else:
+                    os.makedirs(diff_path, exist_ok=True)
+                
+            t0 = int(time.time())
             for img_idx, step, layer, tensor in feature_diff(features1, features2):
                 canvases = tensor_to_grid_images(tensor, layer, p.width, p.height, color)
                 for canvas in canvases:
@@ -229,16 +237,11 @@ class Script(scripts.Script):
                     proc.all_seeds.append(proc1.all_seeds[img_idx])
                     proc.all_subseeds.append(proc1.all_subseeds[img_idx])
                     proc.infotexts.append(f"Layer Name: {layer}, Feature Steps: {step}")
-            
-            #if diff_path_on:
-            #    assert diff_path is not None and diff_path != "", E("<Output path> must not be empty.")
-            #    # mkdir -p path
-            #    if os.path.exists(diff_path):
-            #        assert os.path.isdir(diff_path), E("<Output path> already exists and is not a directory.")
-            #    else:
-            #        os.makedirs(diff_path, exist_ok=True)
-            #    
-            #    # ...
+                    
+                if diff_path_on:
+                    basename = f"{img_idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
+                    save_tensor(tensor, diff_path, basename)
+                    
             
         else:
             proc, _ = exec(p, ex, lp, color)
