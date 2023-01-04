@@ -28,70 +28,80 @@ class Script(scripts.Script):
     
     def ui(self, is_img2img):
         
-        with gr.Blocks(elem_id="dumpunet-ui"):
-            with gr.Group(elem_id="dumpunet-features"):
+        with gr.Group(elem_id="dumpunet-ui"):
+            with gr.Tab("U-Net features", elem_id="dumpunet-features-tab"):
                 unet_features_enabled = gr.Checkbox(
                     label="Extract U-Net features",
-                    value=False
+                    value=False,
+                    elem_id="dumpunet-features-checkbox"
                 )
                 
                 with gr.Group(elem_id="dumpunet-features-image"):
                     layer = gr.Textbox(
                         label="Layers",
                         placeholder="eg. IN00-OUT03(+2),OUT10",
-                        elem_id="dumpunet-layer",
+                        elem_id="dumpunet-features-layer",
                     )
                     
                     layer_setting_hidden = gr.HTML(
                         json.dumps(layerinfo.Settings),
                         visible=False,
-                        elem_id="dumpunet-layer_setting"
+                        elem_id="dumpunet-features-layer_setting"
                     )
                     
                     steps = gr.Textbox(
                         label="Image saving steps",
-                        placeholder="eg. 1,5-20(+5)"
+                        placeholder="eg. 1,5-20(+5)",
+                        elem_id="dumpunet-features-steps"
                     )
                     
                     color = gr.Checkbox(
                         False,
-                        label="Use red/blue color map (red=POSITIVE, black=ZERO, blue=NEGATIVE)"
+                        label="Use red/blue color map (red=POSITIVE, black=ZERO, blue=NEGATIVE)",
+                        elem_id="dumpunet-features-color"
                     )
                     
                 with gr.Group(elem_id="dumpunet-features-tensor"):
                     path_on = gr.Checkbox(
                         False,
-                        label="Dump feature tensors to files"
+                        label="Dump feature tensors to files",
+                        elem_id="dumpunet-features-dump"
                     )
                     
                     path = gr.Textbox(
                         label="Output path",
-                        placeholder="eg. /home/hnmr/unet/"
+                        placeholder="eg. /home/hnmr/unet/",
+                        elem_id="dumpunet-features-dumppath"
                     )
             
                 with gr.Accordion("Selected Layer Info", open=False):
-                    layer_info = gr.HTML(elem_id="dumpunet-layerinfo")
+                    layer_info = gr.HTML(elem_id="dumpunet-features-layerinfo")
         
-            with gr.Group(elem_id="dumpunet-layerprompt"):
+            with gr.Tab("Layer Prompt", elem_id="dumpunet-layerprompt-tab"):
+            #with gr.Group(elem_id="dumpunet-layerprompt"):
                 layerprompt_enabled = gr.Checkbox(
                     label="Enable Layer Prompt",
-                    value=False
+                    value=False,
+                    elem_id="dumpunet-layerprompt-checkbox"
                 )
                 
                 with gr.Group(elem_id="dumpunet-layerprompt-diff"):
                     layerprompt_diff_enabled = gr.Checkbox(
                         label="Output difference map of U-Net features between with and without Layer Prompt",
-                        value=False
+                        value=False,
+                        elem_id="dumpunet-layerprompt-diff-checkbox"
                     )
                         
                     diff_path_on = gr.Checkbox(
                         False,
-                        label="Dump difference tensors to files"
+                        label="Dump difference tensors to files",
+                        elem_id="dumpunet-layerprompt-diff-dump"
                     )
                     
                     diff_path = gr.Textbox(
                         label="Output path",
-                        placeholder="eg. /home/hnmr/unet/"
+                        placeholder="eg. /home/hnmr/unet/",
+                        elem_id="dumpunet-layerprompt-diff-dumppath"
                     )
                         
         return [

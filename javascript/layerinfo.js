@@ -1,7 +1,8 @@
 onUiUpdate(() => {
-    if (globalThis.DumpUnet) return;
-    const DumpUnet = {};
-    globalThis.DumpUnet = DumpUnet;
+    if (!globalThis.DumpUnet) {
+        globalThis.DumpUnet = {};
+    }
+    const DumpUnet = globalThis.DumpUnet;
 
     DumpUnet.applySizeCallback = function () {
         if (globalThis.DumpUnet.applySizeCallbackCalled) return;
@@ -88,7 +89,7 @@ onUiUpdate(() => {
             return [...new Set(layers)].sort().map(n => layer_names[n]);
         };
 
-        const layer_input_ele = app.querySelector('#dumpunet-layer textarea');
+        const layer_input_ele = app.querySelector('#dumpunet-features-layer textarea');
         layer_input_ele.addEventListener('input', e => {
             const input = layer_input_ele.value;
             const layers = parse_layers(input);
@@ -108,7 +109,7 @@ onUiUpdate(() => {
             let html = '[Selected Layer Info]<br/>';
 
             for (let layer of layers) {
-                const info = JSON.parse(app.querySelector('#dumpunet-layer_setting').textContent)[layer];
+                const info = JSON.parse(app.querySelector('#dumpunet-features-layer_setting').textContent)[layer];
                 info[0][1] *= ih;
                 info[0][2] *= iw;
                 info[1][1] *= ih;
@@ -121,7 +122,7 @@ Outout:&nbsp;(${info[1].join(',')})<br/>
 `.trim();
             }
 
-            app.querySelector('#dumpunet-layerinfo').innerHTML = html.trim();
+            app.querySelector('#dumpunet-features-layerinfo').innerHTML = html.trim();
         };
 
         //app.addEventListener('imagesizesliderchange', e => {
