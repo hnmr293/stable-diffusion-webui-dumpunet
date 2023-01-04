@@ -39,13 +39,13 @@ onUiUpdate(() => {
             };
         };
 
-        unet = apply(unet_tab, '#dumpunet-features-checkbox input[type=checkbox]');
+        //unet = apply(unet_tab, '#dumpunet-features-checkbox input[type=checkbox]');
         prompt = apply(prompt_tab, '#dumpunet-layerprompt-checkbox input[type=checkbox]');
 
-        unet_tab.addEventListener('change', unet, false);
+        //unet_tab.addEventListener('change', unet, false);
         prompt_tab.addEventListener('change', prompt, false);
 
-        unet();
+        //unet();
         prompt();
 
         DumpUnet.featureEnablerCallbackCalled = true;
