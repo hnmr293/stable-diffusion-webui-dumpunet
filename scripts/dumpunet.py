@@ -172,7 +172,7 @@ class Script(scripts.Script):
         
         ex = FeatureExtractor(
             self,
-            unet_features_enabled,
+            unet_features_enabled or layerprompt_diff_enabled,
             p.steps,
             layer_input,
             step_input,
@@ -188,9 +188,13 @@ class Script(scripts.Script):
             fix_seed(p)
             
             # layer prompt disabled
-            proc1, features1 = exec(p, ex, lp, color, False)
+            proc1, features1 = exec(p, ex, lp, False)
+            if unet_features_enabled:
+                proc1 = ex.add_images(p, proc1, features1, color)
             # layer prompt enabled
-            proc2, features2 = exec(p, ex, lp, color)
+            proc2, features2 = exec(p, ex, lp)
+            if unet_features_enabled:
+                proc2 = ex.add_images(p, proc2, features2, color)
             
             assert len(proc1.images) == len(proc2.images)
             
@@ -244,7 +248,9 @@ class Script(scripts.Script):
                     
             
         else:
-            proc, _ = exec(p, ex, lp, color)
+            proc, features = exec(p, ex, lp)
+            if unet_features_enabled:
+                proc = ex.add_images(p, proc, features, color)
             
         return proc
     
@@ -257,7 +263,6 @@ def exec(
     p: StableDiffusionProcessing,
     ex: FeatureExtractor,
     lp: LayerPrompt,
-    color: bool,
     enabled: bool = True
 ):
     with ex, lp:
@@ -267,5 +272,4 @@ def exec(
         # ex.__exit__ does clean up hooks
         
         proc = process_images(p)
-        proc = ex.create_feature_map(p, proc, color)
         return proc, ex.extracted_features

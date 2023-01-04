@@ -125,12 +125,14 @@ class FeatureExtractor:
             target = get_unet_layer(unet, layer)
             self._handles.append(target.register_forward_hook(create_hook(layer)))
         
-    def create_feature_map(
+    def add_images(
         self,
         p: StableDiffusionProcessing,
         proc: Processed,
+        extracted_features: MultiImageFeatures,
         color: bool
-    ):
+    ) -> Processed:
+        
         if not self._enabled:
             return proc
         
@@ -178,7 +180,7 @@ class FeatureExtractor:
             in [proc.all_seeds, proc.all_subseeds, proc.all_prompts, proc.all_negative_prompts, proc.infotexts]
             ]), E(f"#images={len(rest_images)}, #seeds={len(proc.all_seeds)}, #subseeds={len(proc.all_subseeds)}, #pr={len(proc.all_prompts)}, #npr={len(proc.all_negative_prompts)}, #info={len(proc.infotexts)}")
         
-        sorted_step_features = list(sorted_values(self.extracted_features))
+        sorted_step_features = list(sorted_values(extracted_features))
         assert len(rest_images) == len(sorted_step_features), E(f"#images={len(rest_images)}, #features={len(sorted_step_features)}")
         
         t0 = int(time.time()) # for binary files' name
@@ -224,7 +226,7 @@ class FeatureExtractor:
             all_negative_prompts=neg_prompts,
             infotexts=infotexts,
         )
-
+        
 def get_unet_layer(unet, layername: str) -> nn.modules.Module:
     idx = layerinfo.input_index(layername)
     if idx is not None:

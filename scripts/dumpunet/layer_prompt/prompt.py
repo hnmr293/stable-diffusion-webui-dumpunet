@@ -75,12 +75,12 @@ class LayerPrompt:
         print("Layer Prompts")
         print("-" * 80)
         for l, c in self.c.items():
-            print(l, ":", c)
+            print(f"{l:<5} : {c}")
         print("-" * 80)
         print("Layer Negative Prompts")
         print("-" * 80)
         for l, c in self.uc.items():
-            print(l, ":", c)
+            print(f"{l:<5} : {c}")
         print("=" * 80)
         
         old = p.sd_model.model.diffusion_model.forward # type: ignore
