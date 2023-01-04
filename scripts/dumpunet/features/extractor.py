@@ -1,18 +1,15 @@
 import os
 import time
-import math
-from collections import defaultdict
 
 from torch import nn, Tensor
 from torch.utils.hooks import RemovableHandle
-import numpy as np
-from PIL import Image
 
 from modules.processing import Processed, StableDiffusionProcessing
 from modules import shared
 
 from scripts.dumpunet import layerinfo
-from scripts.dumpunet.features.featureinfo import FeatureInfo, Features
+from scripts.dumpunet.features.featureinfo import FeatureInfo, MultiImageFeatures
+from scripts.dumpunet.features.process import feature_to_grid_images, save_features
 from scripts.dumpunet.ui import retrieve_layers, retrieve_steps
 from scripts.dumpunet.report import message as E
 from scripts.dumpunet.utils import *
@@ -20,7 +17,7 @@ from scripts.dumpunet.utils import *
 class FeatureExtractor:
     
     # image_index -> step -> Features
-    extracted_features: defaultdict[int, defaultdict[int, Features]]
+    extracted_features: MultiImageFeatures
     
     # steps to process
     steps: list[int]
@@ -41,7 +38,7 @@ class FeatureExtractor:
         self._enabled = enabled
         self._handles: list[RemovableHandle] = []
         
-        self.extracted_features = defaultdict(lambda: defaultdict(lambda: Features()))
+        self.extracted_features = MultiImageFeatures()
         self.steps = []
         self.layers = []
         self.path = None
@@ -72,6 +69,9 @@ class FeatureExtractor:
         for handle in self._handles:
             handle.remove()
         self._handles.clear()
+        
+        self._handles = []
+        self.extracted_features = MultiImageFeatures()
     
     def setup(
         self,
@@ -100,7 +100,7 @@ class FeatureExtractor:
         def create_hook(layername: str):
             
             def forward_hook(module, inputs, outputs):
-                #print(f"{layername}\t{inputs[0].size()}\t{outputs.size()}")
+                # print(f"{self._runner.steps_on_batch} {layername} {inputs[0].size()} {outputs.size()}")
                 
                 if self._runner.steps_on_batch in self.steps:
                     images_per_batch = outputs.size()[0] // 2 # two same outputs per sample???
@@ -202,15 +202,13 @@ class FeatureExtractor:
                     if shared.state.interrupted:
                         break
                     
-                    tensor = feature.output
-                    assert len(tensor.size()) == 3
-                    
-                    grid_x, grid_y = get_grid_num(layer, p.width, p.height)
-                    basename = f"{idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
-                    canvases = process(tensor, grid_x, grid_y, tensor.size(), color, self.path or "", basename, self.path is not None)
-                    
+                    canvases = feature_to_grid_images(feature, layer, p.width, p.height, color)
                     for canvas in canvases:
                         add_image(canvas, *args, layername=layer, feature_steps=step)
+                    
+                    if self.path is not None:
+                        basename = f"{idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
+                        save_features(feature, self.path, basename)
                     
                     shared.total_tqdm.update()
         
@@ -241,113 +239,3 @@ def get_unet_layer(unet, layername: str) -> nn.modules.Module:
         return unet.output_blocks[idx]
     
     raise ValueError(E(f"Invalid layer name: {layername}"))
-
-def get_grid_num(layer: str, width: int, height: int):
-    assert layer is not None and layer != "", E("<Layers> must not be empty.")
-    assert layer in layerinfo.Settings, E(f"Invalid <Layers> value: {layer}.")
-    _, (ch, mh, mw) = layerinfo.Settings[layer]
-    iw = math.ceil(width  / 64)
-    ih = math.ceil(height / 64)
-    w = mw * iw
-    h = mh * ih 
-    # w : width of a feature map
-    # h : height of a feature map
-    # ch: a number of a feature map
-    n = [w, h]
-    while ch % 2 == 0:
-        n[n[0]>n[1]] *= 2
-        ch //= 2
-    n[n[0]>n[1]] *= ch
-    if n[0] > n[1]:
-        while n[0] > n[1] * 2 and (n[0] // w) % 2 == 0:
-            n[0] //= 2
-            n[1] *= 2
-    else:
-        while n[0] * 2 < n[1] and (n[1] // h) % 2 == 0:
-            n[0] *= 2
-            n[1] //= 2
-    
-    return [n[0] // w, n[1] // h]
-
-def process(tensor: Tensor,
-            grid_x: int,
-            grid_y: int,
-            dims: tuple[int,int,int],
-            color: bool,
-            save_dir: str,
-            basename: str,
-            save_bin: bool = False
-            ):
-    # Regardless of wheather --opt-channelslast is enabled or not, 
-    # feature.size() seems to return (batch, ch, h, w).
-    # Is this intended result???
-    
-    max_ch, ih, iw = dims
-    width = (grid_x * (iw + 1) - 1)
-    height = (grid_y * (ih + 1) - 1)
-    
-    def each_slice(it: range, n: int):
-        cur = []
-        for x in it:
-            cur.append(x)
-            if n == len(cur):
-                yield cur
-                cur = []
-        if 0 < len(cur):
-            yield cur
-    
-    canvases = []
-    color_format = "RGB" if color else "L"
-    
-    for chs in each_slice(range(max_ch), grid_x * grid_y):
-        chs = list(chs)
-        
-        canvas = Image.new(color_format, (width, height), color=0)
-        for iy in range(grid_y):
-            if len(chs) == 0:
-                break
-            
-            for ix in range(grid_x):
-                if shared.state.interrupted:
-                    break
-                
-                if len(chs) == 0:
-                    break
-                
-                ch = chs.pop(0)
-                array = tensor[ch].cpu().numpy().astype(np.float32)
-                filename = basename.format(x=ix, y=iy, ch=ch)
-                
-                # create image
-                x = (iw+1) * ix
-                y = (ih+1) * iy
-                image = tensor_to_image(array, color)
-                canvas.paste(Image.fromarray(image, color_format), (x, y))
-                
-                # save binary
-                if save_bin:
-                    assert save_dir is not None
-                    binpath = os.path.join(save_dir, filename + ".bin")
-                    with open(binpath, "wb") as io:
-                        io.write(bytearray(array))
-        
-        canvases.append(canvas)
-    return canvases
-
-def tensor_to_image(array: np.ndarray, color: bool):
-    # array := (-∞, ∞)
-    
-    if color:
-        def colorize(v: float):
-            # v = -1 .. 1 を
-            # v < 0 のとき青 (0, 0, 1)
-            # v > 0 のとき赤 (1 ,0, 0)
-            # にする
-            rgb = (v if v > 0.0 else 0.0, 0.0, -v if v < 0.0 else 0.0)
-            return rgb
-        colorize2 = np.vectorize(colorize, otypes=[np.float32, np.float32, np.float32])
-        rgb = colorize2(np.clip(array, -1.0, 1.0))
-        return np.clip((np.dstack(rgb) * 256), 0, 255).astype(np.uint8)
-            
-    else:
-        return np.clip(np.abs(array) * 256, 0, 255).astype(np.uint8)

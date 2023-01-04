@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass, fields
+from abc import abstractmethod
 
 from scripts.dumpunet import layerinfo
 from scripts.dumpunet.layer_prompt.parser import parse, bad_prompt
@@ -53,7 +54,13 @@ class LayerPrompts:
 
 re_whole = re.compile(r"\(~\:((?s:.)+?)\:~\)")
 
-class LayerPromptGenerator:
+class Generator:
+    
+    @abstractmethod
+    def generate(self, prompt: str) -> LayerPrompts:
+        return NotImplemented
+
+class LayerPromptGenerator(Generator):
     
     def __init__(self):
         pass
@@ -82,6 +89,15 @@ class LayerPromptGenerator:
             result.append(p.apply(idx))
         
         return LayerPrompts(*result)
+
+class LayerPromptEraseGenerator(Generator):
+    
+    def __init__(self):
+        pass
+    
+    def generate(self, prompt: str):
+        p = re.sub(re_whole, "", prompt)
+        return LayerPrompts(*([p] * len(layerinfo.Names)))
 
 # Parser
 

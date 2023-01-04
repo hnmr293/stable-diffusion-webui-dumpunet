@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from collections import defaultdict
 
 import torch
 from torch import Tensor
@@ -22,15 +23,22 @@ class Features:
         self.features = dict()
     
     def __getitem__(self, layer: int|str):
+        v = None
         if isinstance(layer, int):
-            return self.get_by_index(layer)
+            v = self.get_by_index(layer)
         elif isinstance(layer, str):
-            return self.get_by_name(layer)
-        else:
-            raise ValueError(E(f"invalid type: {type(layer)}"))
+            v = self.get_by_name(layer)
+        if v is None:
+            raise KeyError(E(f"invalid key: {type(layer)} {layer}"))
+        return v
     
     def __iter__(self):
         return sorted_items(self.features)
+    
+    def __contains__(self, key: int|str):
+        if isinstance(key, int):
+            key = layerinfo.name(key) or ""
+        return key in self.features
     
     def layers(self):
         return sorted_keys(self.features)
@@ -53,3 +61,14 @@ class Features:
                 raise ValueError(E(f"invalid layer name: {layer}"))
             layer = name
         self.features[layer] = info
+
+class MultiStepFeatures(defaultdict[int,Features]):
+    
+    def __init__(self):
+        super().__init__(lambda: Features())
+
+class MultiImageFeatures(defaultdict[int,MultiStepFeatures]):
+    
+    def __init__(self):
+        super().__init__(lambda: MultiStepFeatures())
+

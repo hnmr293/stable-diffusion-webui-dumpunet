@@ -10,7 +10,7 @@ from ldm.modules.diffusionmodules.util import timestep_embedding # type: ignore
 from modules.processing import StableDiffusionProcessing
 from modules import devices, prompt_parser
 
-from scripts.dumpunet.layer_prompt.generator import LayerPromptGenerator, LayerPrompts
+from scripts.dumpunet.layer_prompt.generator import LayerPromptGenerator, LayerPromptEraseGenerator, LayerPrompts
 from scripts.dumpunet.layer_prompt.parser import BadPromptError
 
 class LayerPrompt:
@@ -47,17 +47,21 @@ class LayerPrompt:
     def __exit__(self, exc_type, exc_value, traceback):
         if self.model is not None and self.o_fw is not None:
             self.model.diffusion_model.forward = self.o_fw
+        self.o_c = self.o_uc = ""
+        self.o_fw = self.model = self.c = self.uc = self.fw = None
     
-    def setup(self, p: StableDiffusionProcessing):
+    def setup(self, p: StableDiffusionProcessing, disabled=False):
         if not self._enabled:
             return
         
         self.o_c = p.all_prompts[0] if len(p.all_prompts or []) > 0 else p.prompt # type: ignore
         self.o_uc = p.all_negative_prompts[0] if len(p.all_negative_prompts or []) > 0 else p.negative_prompt # type: ignore
         
-        gen = LayerPromptGenerator()
-        
         try:
+            if disabled:
+                gen = LayerPromptEraseGenerator()
+            else:
+                gen = LayerPromptGenerator()
             self.c = gen.generate(self.o_c)
             self.uc = gen.generate(self.o_uc)
         except BadPromptError as pe:
@@ -79,31 +83,52 @@ class LayerPrompt:
             print(l, ":", c)
         print("=" * 80)
         
-        old, new = self._hook(p)
+        old = p.sd_model.model.diffusion_model.forward # type: ignore
+        new = self._forward_fn(p, self.c, self.uc)
         self.o_fw = old
         self.fw = new
         
+        # replace U-Net forward
         self.model = p.sd_model.model                # type: ignore
         self.model.diffusion_model.forward = self.fw # type: ignore
     
-    def _hook(self, p: StableDiffusionProcessing):
-        assert self.c is not None
-        assert self.uc is not None
+    def _forward_fn(
+        self,
+        p: StableDiffusionProcessing,
+        c: LayerPrompts,
+        uc: LayerPrompts
+    ):
+        assert c is not None
+        assert uc is not None
         
+        blocks_cond = self._create_blocks_cond(p, c, uc)
+
+        new_forward = self._create_forward_fn(
+            p.sd_model.model.diffusion_model, # type: ignore
+            blocks_cond
+        )
+        
+        return new_forward
+    
+    def _create_blocks_cond(
+        self,
+        p: StableDiffusionProcessing,
+        c: LayerPrompts,
+        uc: LayerPrompts
+    ):
         # get conditional
         with devices.autocast():
-            uc = prompt_parser.get_learned_conditioning(p.sd_model, list(self.uc.values()), p.steps)
-            c = prompt_parser.get_learned_conditioning(p.sd_model, list(self.c.values()), p.steps)
+            uc1 = prompt_parser.get_learned_conditioning(p.sd_model, list(uc.values()), p.steps)
+            c1 = prompt_parser.get_learned_conditioning(p.sd_model, list(c.values()), p.steps)
         
         blocks_cond = []
-        for uc1, c1 in zip(uc, c):
-            cond = torch.cat([c1[0].cond.unsqueeze(0), uc1[0].cond.unsqueeze(0)])                                         # ignore scheduled cond
+        for uc2, c2 in zip(uc1, c1):
+            cond = torch.cat([c2[0].cond.unsqueeze(0), uc2[0].cond.unsqueeze(0)])                                         # ignore scheduled cond
             blocks_cond.append(cond)
-
-        # replace U-Net forward
-        model = p.sd_model.model # type: ignore
-        org_forward = model.diffusion_model.forward
-        _self = model.diffusion_model
+        
+        return blocks_cond
+    
+    def _create_forward_fn(self, _self, blocks_cond):
         
         def new_forward(x, timesteps=None, context=None, y=None, **kwargs):
             """
@@ -144,6 +169,6 @@ class LayerPrompt:
                 return _self.id_predictor(h)
             else:
                 return _self.out(h)
-
-        return org_forward, new_forward
+        
+        return new_forward
     

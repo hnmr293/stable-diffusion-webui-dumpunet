@@ -1,18 +1,17 @@
-import os
+import time
 import json
 
 import gradio as gr
 
 import modules.scripts as scripts
-from modules.processing import process_images, StableDiffusionProcessing
+from modules.processing import process_images, fix_seed, StableDiffusionProcessing, Processed
 from modules import shared
 
 from scripts.dumpunet import layerinfo
-from scripts.dumpunet.features.feature_extractor import FeatureExtractor
+from scripts.dumpunet.features.extractor import FeatureExtractor
+from scripts.dumpunet.features.process import feature_diff, tensor_to_grid_images
 from scripts.dumpunet.layer_prompt.prompt import LayerPrompt
 from scripts.dumpunet.layer_prompt.parser import BadPromptError
-from scripts.dumpunet.report import message as E
-from scripts.dumpunet.utils import *
 
 class Script(scripts.Script):
     
@@ -168,6 +167,8 @@ class Script(scripts.Script):
         if not unet_features_enabled and not layerprompt_enabled:
             return process_images(p)
         
+        layerprompt_diff_enabled = layerprompt_enabled and layerprompt_diff_enabled
+        
         ex = FeatureExtractor(
             self,
             unet_features_enabled,
@@ -182,35 +183,86 @@ class Script(scripts.Script):
             layerprompt_enabled,
         )
         
-        #if layerprompt_diff_enabled:
-        #    
-        #    # ...
-        #    
-        #    if diff_path_on:
-        #        assert diff_path is not None and diff_path != "", E("<Output path> must not be empty.")
-        #        # mkdir -p path
-        #        if os.path.exists(diff_path):
-        #            assert os.path.isdir(diff_path), E("<Output path> already exists and is not a directory.")
-        #        else:
-        #            os.makedirs(diff_path, exist_ok=True)
-        #        
-        #        # ...
-                    
-        
-        with ex, lp:
-            lp.setup(p) # replace U-Net forward, and...
-            ex.setup(p) # hook the replaced forward
-            proc = process_images(p)
-            # ex.__exit__ does clean up hooks
-        
-        if shared.state.interrupted:
-            return proc
-        
-        proc = ex.create_feature_map(p, proc, color)
-        
+        if layerprompt_diff_enabled:
+            fix_seed(p)
+            
+            # layer prompt disabled
+            proc1, features1 = exec(p, ex, lp, color, False)
+            # layer prompt enabled
+            proc2, features2 = exec(p, ex, lp, color)
+            
+            assert len(proc1.images) == len(proc2.images)
+            
+            proc = Processed(
+                p,
+                (
+                    proc1.images[:proc1.index_of_first_image] + 
+                    proc2.images[:proc2.index_of_first_image] + 
+                    proc1.images[proc1.index_of_first_image:] + 
+                    proc2.images[proc2.index_of_first_image:]
+                ),
+                proc1.seed,
+                proc1.info,
+                proc1.subseed,
+                proc1.all_prompts + proc2.all_prompts,
+                proc1.all_negative_prompts + proc2.all_negative_prompts,
+                proc1.all_seeds + proc2.all_seeds,
+                proc1.all_subseeds + proc2.all_subseeds,
+                proc1.index_of_first_image + proc2.index_of_first_image,
+                (
+                    proc1.infotexts[:proc1.index_of_first_image] +
+                    proc2.infotexts[:proc2.index_of_first_image] +
+                    proc1.infotexts[proc1.index_of_first_image:] +
+                    proc2.infotexts[proc2.index_of_first_image:]
+                ),
+                proc1.comments
+            )
+            
+            #t0 = int(time.time())
+            #basename = f"{img_idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
+            for img_idx, step, layer, tensor in feature_diff(features1, features2):
+                canvases = tensor_to_grid_images(tensor, layer, p.width, p.height, color)
+                for canvas in canvases:
+                    proc.images.append(canvas)
+                    proc.all_prompts.append(proc1.all_prompts[img_idx])
+                    proc.all_negative_prompts.append(proc1.all_negative_prompts[img_idx])
+                    proc.all_seeds.append(proc1.all_seeds[img_idx])
+                    proc.all_subseeds.append(proc1.all_subseeds[img_idx])
+                    proc.infotexts.append(f"Layer Name: {layer}, Feature Steps: {step}")
+            
+            #if diff_path_on:
+            #    assert diff_path is not None and diff_path != "", E("<Output path> must not be empty.")
+            #    # mkdir -p path
+            #    if os.path.exists(diff_path):
+            #        assert os.path.isdir(diff_path), E("<Output path> already exists and is not a directory.")
+            #    else:
+            #        os.makedirs(diff_path, exist_ok=True)
+            #    
+            #    # ...
+            
+        else:
+            proc, _ = exec(p, ex, lp, color)
+            
         return proc
     
     def notify_error(self, e: Exception):
         if isinstance(e, BadPromptError):
             if self.prompt_error is not None:
                 self.prompt_error = str(e)
+
+def exec(
+    p: StableDiffusionProcessing,
+    ex: FeatureExtractor,
+    lp: LayerPrompt,
+    color: bool,
+    enabled: bool = True
+):
+    with ex, lp:
+        # replace U-Net forward, and...
+        lp.setup(p, disabled=not enabled)
+        ex.setup(p) # hook the replaced forward
+        # ex.__exit__ does clean up hooks
+        
+        proc = process_images(p)
+        proc = ex.create_feature_map(p, proc, color)
+        return proc, ex.extracted_features
