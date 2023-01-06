@@ -175,10 +175,21 @@ class FeatureExtractor:
             preview_info = proc.infotexts.pop(0)
             add_image(image, proc.seed, proc.subseed, proc.prompt, proc.negative_prompt, preview_info)
         
+        # For Dynamic Prompt Extension
+        # which is not append subseeds...
+        while len(proc.all_subseeds) < len(proc.all_seeds):
+            proc.all_subseeds.append(proc.all_subseeds[0] if 0 < len(proc.all_subseeds) else 0)
+        
         assert all([
             len(rest_images) == len(x) for x 
-            in [proc.all_seeds, proc.all_subseeds, proc.all_prompts, proc.all_negative_prompts, proc.infotexts]
-            ]), E(f"#images={len(rest_images)}, #seeds={len(proc.all_seeds)}, #subseeds={len(proc.all_subseeds)}, #pr={len(proc.all_prompts)}, #npr={len(proc.all_negative_prompts)}, #info={len(proc.infotexts)}")
+            in [
+                proc.all_seeds,
+                proc.all_subseeds,
+                proc.all_prompts,
+                proc.all_negative_prompts,
+                proc.infotexts
+            ]
+        ]), E(f"#images={len(rest_images)}, #seeds={len(proc.all_seeds)}, #subseeds={len(proc.all_subseeds)}, #pr={len(proc.all_prompts)}, #npr={len(proc.all_negative_prompts)}, #info={len(proc.infotexts)}")
         
         sorted_step_features = list(sorted_values(extracted_features))
         assert len(rest_images) == len(sorted_step_features), E(f"#images={len(rest_images)}, #features={len(sorted_step_features)}")

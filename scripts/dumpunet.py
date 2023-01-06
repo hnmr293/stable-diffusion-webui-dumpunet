@@ -6,6 +6,7 @@ import gradio as gr
 
 import modules.scripts as scripts
 from modules.processing import process_images, fix_seed, StableDiffusionProcessing, Processed
+from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img
 
 from scripts.dumpunet import layerinfo
 from scripts.dumpunet.features.extractor import FeatureExtractor
@@ -87,6 +88,13 @@ class Script(scripts.Script):
                     elem_id="dumpunet-layerprompt-checkbox"
                 )
                 
+                with gr.Group(elem_id="dumpunet-layerprompt-stdout"):
+                    layerprompt_show_prompts = gr.Checkbox(
+                        label="Show prompts in stdout",
+                        value=False,
+                        elem_id="dumpunet-layerprompt-stdout-checkbox"
+                    )
+                
                 with gr.Group(elem_id="dumpunet-layerprompt-diff"):
                     layerprompt_diff_enabled = gr.Checkbox(
                         label="Output difference map of U-Net features between with and without Layer Prompt",
@@ -117,6 +125,7 @@ class Script(scripts.Script):
             path_on,
             path,
             layerprompt_enabled,
+            layerprompt_show_prompts,
             layerprompt_diff_enabled,
             diff_path_on,
             diff_path,
@@ -158,6 +167,7 @@ class Script(scripts.Script):
             path_on: bool,
             path: str,
             layerprompt_enabled: bool,
+            layerprompt_show_prompts: bool,
             layerprompt_diff_enabled: bool,
             diff_path_on: bool,
             diff_path: str,
@@ -182,19 +192,23 @@ class Script(scripts.Script):
         lp = LayerPrompt(
             self,
             layerprompt_enabled,
+            layerprompt_show_prompts,
         )
         
         if layerprompt_diff_enabled:
             fix_seed(p)
             
+            p1 = copy_processing(p)
+            p2 = copy_processing(p)
+            
             # layer prompt disabled
-            proc1, features1 = exec(p, ex, lp, False)
+            proc1, features1 = exec(p1, ex, lp, remove_layer_prompts=True)
             if unet_features_enabled:
-                proc1 = ex.add_images(p, proc1, features1, color)
+                proc1 = ex.add_images(p1, proc1, features1, color)
             # layer prompt enabled
-            proc2, features2 = exec(p, ex, lp)
+            proc2, features2 = exec(p2, ex, lp)
             if unet_features_enabled:
-                proc2 = ex.add_images(p, proc2, features2, color)
+                proc2 = ex.add_images(p2, proc2, features2, color)
             
             assert len(proc1.images) == len(proc2.images)
             
@@ -263,13 +277,105 @@ def exec(
     p: StableDiffusionProcessing,
     ex: FeatureExtractor,
     lp: LayerPrompt,
-    enabled: bool = True
+    remove_layer_prompts: bool = False
 ):
     with ex, lp:
         # replace U-Net forward, and...
-        lp.setup(p, disabled=not enabled)
+        lp.setup(p, remove_layer_prompts=remove_layer_prompts)
         ex.setup(p) # hook the replaced forward
         # ex.__exit__ does clean up hooks
         
         proc = process_images(p)
         return proc, ex.extracted_features
+
+def copy_processing(p: StableDiffusionProcessing):
+    args = {
+        "sd_model": p.sd_model,
+        "outpath_samples": p.outpath_samples,
+        "outpath_grids": p.outpath_grids,
+        "prompt": p.prompt,
+        "styles": p.styles[:],
+        "seed": p.seed,
+        "subseed": p.subseed,
+        "subseed_strength": p.subseed_strength,
+        "seed_resize_from_h": p.seed_resize_from_h,
+        "seed_resize_from_w": p.seed_resize_from_w,
+        "seed_enable_extras": False,
+        "sampler_name": p.sampler_name,
+        "batch_size": p.batch_size,
+        "n_iter": p.n_iter,
+        "steps": p.steps,
+        "cfg_scale": p.cfg_scale,
+        "width": p.width,
+        "height": p.height,
+        "restore_faces": p.restore_faces,
+        "tiling": p.tiling,
+        "do_not_save_samples": p.do_not_save_samples,
+        "do_not_save_grid": p.do_not_save_grid,
+        "extra_generation_params": p.extra_generation_params.copy() if p.extra_generation_params is not None else {},
+        "overlay_images": p.overlay_images,
+        "negative_prompt": p.negative_prompt,
+        "eta": p.eta,
+        "do_not_reload_embeddings": p.do_not_reload_embeddings,
+        "denoising_strength": p.denoising_strength,
+        "ddim_discretize": p.ddim_discretize,
+        "s_churn": p.s_churn,
+        "s_tmax": p.s_tmax,
+        "s_tmin": p.s_tmin,
+        "s_noise": p.s_noise,
+        "override_settings": p.override_settings.copy() if p.override_settings is not None else {},
+        "override_settings_restore_afterwards": p.override_settings_restore_afterwards,
+        "sampler_index": None,
+    }
+    
+    t2i_args = {}
+    i2i_args = {}
+    
+    if isinstance(p, StableDiffusionProcessingTxt2Img):
+        t2i_args = {
+            "enable_hr": p.enable_hr,
+            "denoising_strength": p.denoising_strength,
+            "firstphase_width": p.firstphase_width,
+            "firstphase_height": p.firstphase_height
+        }
+    
+    if isinstance(p, StableDiffusionProcessingImg2Img):
+        i2i_args = {
+            "init_images": p.init_images[:] if p.init_images is not None else None,
+            "resize_mode": p.resize_mode,
+            "denoising_strength": p.denoising_strength,
+            "mask": p.image_mask,
+            "mask_blur": p.mask_blur,
+            "inpainting_fill": p.inpainting_fill,
+            "inpaint_full_res": p.inpaint_full_res,
+            "inpaint_full_res_padding": p.inpaint_full_res_padding,
+            "inpainting_mask_invert": p.inpainting_mask_invert,
+            "initial_noise_multiplier": p.initial_noise_multiplier
+        }
+    
+    args.update(t2i_args)
+    args.update(i2i_args)
+    
+    pp = type(p)(**args)
+    
+    pp.prompt_for_display = p.prompt_for_display
+    pp.paste_to = p.paste_to
+    pp.color_corrections = p.color_corrections
+    pp.sampler_noise_scheduler_override = p.sampler_noise_scheduler_override
+    pp.is_using_inpainting_conditioning = p.is_using_inpainting_conditioning
+    pp.scripts = p.scripts
+    pp.script_args = p.script_args
+    pp.all_prompts = p.all_prompts
+    pp.all_negative_prompts = p.all_negative_prompts
+    pp.all_seeds = p.all_seeds
+    pp.all_subseeds = p.all_subseeds
+    
+    for attr in [
+        "sampler",
+        "truncate_x", "truncate_y",
+        "init_latent", "latent_mask", "mask_for_overlay", "mask", "nmask", "image_conditioning"
+    ]:
+        if hasattr(p, attr):
+            setattr(pp, attr, getattr(p, attr))
+    
+    return pp

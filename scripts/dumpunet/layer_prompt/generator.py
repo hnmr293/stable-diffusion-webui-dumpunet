@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass, fields
 from abc import abstractmethod
+from typing import Generator as tGenerator
 
 from scripts.dumpunet import layerinfo
 from scripts.dumpunet.layer_prompt.parser import parse, bad_prompt
@@ -40,15 +41,15 @@ class LayerPrompts:
         for fld in fields(self):
             yield fld.name
     
-    def keys(self):
+    def keys(self) -> tGenerator[str,None,None]:
         for fld in fields(self):
             yield fld.name
     
-    def values(self):
+    def values(self) -> tGenerator[str,None,None]:
         for fld in fields(self):
             yield getattr(self, fld.name)
     
-    def items(self):
+    def items(self) -> tGenerator[tuple[str,str],None,None]:
         for fld in fields(self):
             yield fld.name, getattr(self, fld.name)
 
