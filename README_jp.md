@@ -2,6 +2,7 @@
 - [概略](#概略)
 - [特徴量の抽出](#特徴量の抽出)
 - [ブロックごとのプロンプトの変更](#ブロックごとのプロンプトの変更)
+  - [Dynamic Prompts との併用](#dynamic-prompts-との併用)
 - [差分の可視化](#差分の可視化)
 - [TODO](#todo)
 
@@ -185,6 +186,22 @@ a  excellent  girl
 
 5: IN00からOUT11まで（つまり全体）でAを使う。ただしM00ではBを使う。
 
+## Dynamic Prompts との併用
+
+検証には [Dynamic Prompts](https://github.com/adieyal/sd-dynamic-prompts) との併用が便利。
+
+たとえば1ブロックでのみプロンプトを変更した際の影響を見たい場合、Dynamic Prompts の Jinja Template を有効にして
+
+```
+{% for layer in [ "IN00", "IN01", "IN02", "IN03", "IN04", "IN05", "IN06", "IN07", "IN08", "IN09", "IN10", "IN11", "M00", "OUT00", "OUT01", "OUT02", "OUT03", "OUT04", "OUT05", "OUT06", "OUT07", "OUT08", "OUT09", "OUT10", "OUT11" ] %}
+  {% prompt %}a cute school girl, pink hair, wide shot, (~:{{layer}}:bad anatomy:~){% endprompt %}
+{% endfor %}
+```
+
+と指定すると、各ブロックでの「bad anatomy」の効果を調べる……といったことができる。
+
+実際の例：[ブロック別プロンプトで特定の1ブロックにプロンプトを追加してみるテスト](https://gist.github.com/hnmr293/7f240aa5b74c0f5a27a9764fdd9672e2)
+
 # 差分の可視化
 
 `Layer Prompt` タブの `Output difference map of U-Net features between with and without Layer Prompt` をオンにすると、ブロックごとのプロンプトを使った場合と使わない場合で U-Net の特徴量にどのような差があるかを可視化した画像を生成する。
@@ -195,6 +212,5 @@ a  excellent  girl
 
 # TODO
 
-- Dynamic Prompt、特に Jinja Template と一緒に動かせるようにする。※今は動かない。
 - 1.特徴量の抽出の画面説明
 - 差分の可視化についてもうちょっと書く
