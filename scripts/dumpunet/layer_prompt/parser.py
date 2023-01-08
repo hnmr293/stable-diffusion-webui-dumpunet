@@ -67,8 +67,9 @@ re_space = re.compile(r"\s+")
 re_comma = re.compile(r"\s*,\s*")
 re_hyphen = re.compile(r"\s*-\s*")
 re_under_colon = re.compile(r"\s*_\s*:\s*")
-re_colon = re.compile(r"\s*(?<!\\)(?:\\\\)*:")
-re_until_colon_or_end = re.compile(r"(.*?)(?:(?<!\\)(?:\\\\)*:|$)")
+#re_colon = re.compile(r"\s*(?<!\\)(?:\\\\)*:")
+re_colon = re.compile(r"\s*:")
+re_eoc = re.compile(r"(.*?)(?:(?<!\\)(?:\\\\)*;|$)")
 
 def parse(s: str):
     pos = 0
@@ -121,7 +122,7 @@ def parse(s: str):
             fail("a layer name (IN00, IN01, ...)")
     
     def parse_content() -> tuple[int,str]:
-        return need(re_until_colon_or_end, 1, ex="colon (:) or EOS ($)")
+        return need(re_eoc, 1, ex="semi-colon (;) or EOS ($)")
     
     def parse_pair() -> tuple[list[tuple[tuple[int,str],tuple[int,str]]|tuple[int,str]], tuple[int,str]]:
         skip(re_space)

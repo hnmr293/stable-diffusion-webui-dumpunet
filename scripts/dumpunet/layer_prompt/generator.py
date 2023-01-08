@@ -155,12 +155,12 @@ class LayerPromptParser:
 a cute school girl
 a (~:IN00-IN02,OUT04:cute:~) school girl
 a (~:
-     IN00-IN02,OUT04: cute:
-     IN03-IN05:       beautiful:
-     _:               excellent:
+     IN00-IN02,OUT04: cute;
+     IN03-IN05:       beautiful;
+     _:               excellent;
    :~) school girl
 
-"(~:" { layer ":" content ":" }+ layer ":" content ":"? ":~)"
+"(~:" { layer ":" content ";" }+ layer ":" content ";"? ":~)"
 
 layer   : layer1
         | layer1 "," layer
@@ -174,8 +174,8 @@ layer2  : "IN00" | "IN01" | "IN02" | "IN03" | "IN04" | "IN05" | "IN06" | "IN07" 
 
 content : ch +
 
-ch  : character, except for ":"
-      to use ":", put "\:"
+ch  : character, except for ";"
+      to use ";", put "\;"
       to use "\", put "\\"
 """
 
