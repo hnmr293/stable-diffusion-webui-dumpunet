@@ -17,7 +17,6 @@ onUiUpdate(() => {
             '#dumpunet-{}-features-dumppath': 'Raw binary files are dumped to here, one image per step per layer.',
 
             '#dumpunet-{}-layerprompt-checkbox': 'When checked, <code>(~: ... :~)</code> notation is enabled.',
-            '#dumpunet-{}-layerprompt-stdout-checkbox': 'When checked, print prompts for each batch to stdout.',
         };
 
         const hints = {

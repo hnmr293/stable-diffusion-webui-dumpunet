@@ -29,14 +29,11 @@ class LayerPrompt:
     
     model: Any
     
-    remove_layer_prompts: bool
-    
     last_batch_num: int
     
-    def __init__(self, runner, enabled: bool, prompts_to_stdout: bool):
+    def __init__(self, runner, enabled: bool):
         self._runner = runner
         self._enabled = enabled
-        self._show = prompts_to_stdout
         self.o_fw = self.fw = self.model = None
         self.remove_layer_prompts = False
         self.last_batch_num = -1
@@ -172,7 +169,7 @@ class LayerPrompt:
                 self._create_blocks_cond(p, prompts, negative_prompts)
             
             last_n, self.last_batch_num = self.last_batch_num, n
-            if self._show and last_n != n:
+            if last_n != n:
                 self.dump_prompts(n, c_list, uc_list)
             
             cond_index = 0
@@ -195,8 +192,8 @@ class LayerPrompt:
         
         return new_forward
     
-    def dump_prompts(self, n: int, c_list, uc_list, file=sys.stdout):
-        def pp(s, file=file): print(s, file=file)
+    def dump_prompts(self, n: int, c_list, uc_list):
+        def pp(s): self._runner.log(s)
         pp("=" * 80)
         pp(f"Prompts (batch={n}, step={self._runner.steps_on_batch}")
         pp("-" * 80)

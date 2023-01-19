@@ -1,3 +1,4 @@
+import sys
 import os
 import time
 import json
@@ -21,6 +22,11 @@ class Script(scripts.Script):
         super().__init__()
         self.batch_num = 0
         self.steps_on_batch = 0
+        self.debug = False
+    
+    def log(self, msg: str):
+        if self.debug:
+            print(E(msg), file=sys.stderr)
     
     def title(self):
         return "Dump U-Net features"
@@ -90,13 +96,6 @@ class Script(scripts.Script):
                     elem_id=id("layerprompt-checkbox")
                 )
                 
-                with gr.Group(elem_id=id("layerprompt-stdout")):
-                    layerprompt_show_prompts = gr.Checkbox(
-                        label="Show prompts in stdout",
-                        value=False,
-                        elem_id=id("layerprompt-stdout-checkbox")
-                    )
-                
                 with gr.Group(elem_id=id("layerprompt-diff")):
                     layerprompt_diff_enabled = gr.Checkbox(
                         label="Output difference map of U-Net features between with and without Layer Prompt",
@@ -115,7 +114,21 @@ class Script(scripts.Script):
                         placeholder="eg. /home/hnmr/unet/",
                         elem_id=id("layerprompt-diff-dumppath")
                     )
-                        
+                
+            with gr.Tab("Settings"):
+                debug = gr.Checkbox(
+                    label="log to stderr",
+                    value=self.debug
+                )
+                
+                def set_debug(x):
+                    self.debug = x
+
+                debug.change(
+                    fn=set_debug,
+                    inputs=debug
+                )
+
         return [
             unet_features_enabled,
             layer,
@@ -124,10 +137,10 @@ class Script(scripts.Script):
             path_on,
             path,
             layerprompt_enabled,
-            layerprompt_show_prompts,
             layerprompt_diff_enabled,
             diff_path_on,
             diff_path,
+            debug,
         ]
     
     def process(self, p, *args):
@@ -166,14 +179,16 @@ class Script(scripts.Script):
             path_on: bool,
             path: str,
             layerprompt_enabled: bool,
-            layerprompt_show_prompts: bool,
             layerprompt_diff_enabled: bool,
             diff_path_on: bool,
             diff_path: str,
+            debug: bool,
     ):
                   
         if not unet_features_enabled and not layerprompt_enabled:
             return process_images(p)
+        
+        self.debug = debug
         
         layerprompt_diff_enabled = layerprompt_enabled and layerprompt_diff_enabled
         
@@ -189,7 +204,6 @@ class Script(scripts.Script):
         lp = LayerPrompt(
             self,
             layerprompt_enabled,
-            layerprompt_show_prompts,
         )
         
         if layerprompt_diff_enabled:
@@ -267,6 +281,9 @@ class Script(scripts.Script):
     
     def notify_error(self, e: Exception):
         pass
+    
+    def set_debug(self, b: bool):
+        self.debug = b
 
 def exec(
     p: StableDiffusionProcessing,
