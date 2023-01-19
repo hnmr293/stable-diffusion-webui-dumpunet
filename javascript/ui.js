@@ -10,9 +10,13 @@ onUiUpdate(() => {
         const app = gradioApp();
         if (!app || app === document) return;
 
-        const unet_tab = app.querySelector('#dumpunet-features-tab'),
-            prompt_tab = app.querySelector('#dumpunet-layerprompt-tab');
-        if (!unet_tab || !prompt_tab) return;
+        const tabs = {};
+        for (let mode of ['txt2img', 'img2img']) {
+            const unet_tab = app.querySelector(`#dumpunet-${mode}-features-tab`),
+                prompt_tab = app.querySelector(`#dumpunet-${mode}-layerprompt-tab`);
+            if (!unet_tab || !prompt_tab) return;
+            tabs[mode] = { unet: unet_tab, prompt: prompt_tab };
+        }
 
         const disableChildren = function (ele, excepts) {
             for (let e of ele.querySelectorAll('textarea, input, select')) {
@@ -39,14 +43,12 @@ onUiUpdate(() => {
             };
         };
 
-        //unet = apply(unet_tab, '#dumpunet-features-checkbox input[type=checkbox]');
-        prompt = apply(prompt_tab, '#dumpunet-layerprompt-checkbox input[type=checkbox]');
-
-        //unet_tab.addEventListener('change', unet, false);
-        prompt_tab.addEventListener('change', prompt, false);
-
-        //unet();
-        prompt();
+        for (let mode of ['txt2img', 'img2img']) {
+            const tab = tabs[mode];
+            const prompt = apply(tab.prompt, `#dumpunet-${mode}-layerprompt-checkbox input[type=checkbox]`);
+            tab.prompt.addEventListener('change', prompt, false);
+            prompt();
+        }
 
         DumpUnet.featureEnablerCallbackCalled = true;
     };

@@ -31,87 +31,90 @@ class Script(scripts.Script):
     
     def ui(self, is_img2img):
         
-        with gr.Group(elem_id="dumpunet-ui"):
-            with gr.Tab("U-Net features", elem_id="dumpunet-features-tab"):
+        ID_PREFIX = "dumpunet"
+        def id(x):
+            return f"{ID_PREFIX}-{'img2img' if is_img2img else 'txt2img'}-{x}"
+        
+        with gr.Group(elem_id=id("ui")):
+            with gr.Tab("U-Net features", elem_id=id("features-tab")):
                 unet_features_enabled = gr.Checkbox(
                     label="Extract U-Net features",
                     value=False,
-                    elem_id="dumpunet-features-checkbox"
+                    elem_id=id("features-checkbox")
                 )
                 
-                with gr.Group(elem_id="dumpunet-features-image"):
+                with gr.Group(elem_id=id("features-image")):
                     layer = gr.Textbox(
                         label="Layers",
                         placeholder="eg. IN00-OUT03(+2),OUT10",
-                        elem_id="dumpunet-features-layer",
+                        elem_id=id("features-layer"),
                     )
                     
                     layer_setting_hidden = gr.HTML(
                         json.dumps(layerinfo.Settings),
                         visible=False,
-                        elem_id="dumpunet-features-layer_setting"
+                        elem_id=id("features-layer_setting")
                     )
                     
                     steps = gr.Textbox(
                         label="Image saving steps",
                         placeholder="eg. 1,5-20(+5)",
-                        elem_id="dumpunet-features-steps"
+                        elem_id=id("features-steps")
                     )
                     
                     color = gr.Checkbox(
                         False,
                         label="Use red/blue color map (red=POSITIVE, black=ZERO, blue=NEGATIVE)",
-                        elem_id="dumpunet-features-color"
+                        elem_id=id("features-color")
                     )
                     
-                with gr.Group(elem_id="dumpunet-features-tensor"):
+                with gr.Group(elem_id=id("features-tensor")):
                     path_on = gr.Checkbox(
                         False,
                         label="Dump feature tensors to files",
-                        elem_id="dumpunet-features-dump"
+                        elem_id=id("features-dump")
                     )
                     
                     path = gr.Textbox(
                         label="Output path",
                         placeholder="eg. /home/hnmr/unet/",
-                        elem_id="dumpunet-features-dumppath"
+                        elem_id=id("features-dumppath")
                     )
             
                 with gr.Accordion("Selected Layer Info", open=False):
-                    layer_info = gr.HTML(elem_id="dumpunet-features-layerinfo")
+                    layer_info = gr.HTML(elem_id=id("features-layerinfo"))
         
-            with gr.Tab("Layer Prompt", elem_id="dumpunet-layerprompt-tab"):
-            #with gr.Group(elem_id="dumpunet-layerprompt"):
+            with gr.Tab("Layer Prompt", elem_id=id("layerprompt-tab")):
                 layerprompt_enabled = gr.Checkbox(
                     label="Enable Layer Prompt",
                     value=False,
-                    elem_id="dumpunet-layerprompt-checkbox"
+                    elem_id=id("layerprompt-checkbox")
                 )
                 
-                with gr.Group(elem_id="dumpunet-layerprompt-stdout"):
+                with gr.Group(elem_id=id("layerprompt-stdout")):
                     layerprompt_show_prompts = gr.Checkbox(
                         label="Show prompts in stdout",
                         value=False,
-                        elem_id="dumpunet-layerprompt-stdout-checkbox"
+                        elem_id=id("layerprompt-stdout-checkbox")
                     )
                 
-                with gr.Group(elem_id="dumpunet-layerprompt-diff"):
+                with gr.Group(elem_id=id("layerprompt-diff")):
                     layerprompt_diff_enabled = gr.Checkbox(
                         label="Output difference map of U-Net features between with and without Layer Prompt",
                         value=False,
-                        elem_id="dumpunet-layerprompt-diff-checkbox"
+                        elem_id=id("layerprompt-diff-checkbox")
                     )
                         
                     diff_path_on = gr.Checkbox(
                         False,
                         label="Dump difference tensors to files",
-                        elem_id="dumpunet-layerprompt-diff-dump"
+                        elem_id=id("layerprompt-diff-dump")
                     )
                     
                     diff_path = gr.Textbox(
                         label="Output path",
                         placeholder="eg. /home/hnmr/unet/",
-                        elem_id="dumpunet-layerprompt-diff-dumppath"
+                        elem_id=id("layerprompt-diff-dumppath")
                     )
                     
                     #with gr.Accordion("Prompt Errors", open=False):
@@ -335,9 +338,19 @@ def copy_processing(p: StableDiffusionProcessing):
         t2i_args = {
             "enable_hr": p.enable_hr,
             "denoising_strength": p.denoising_strength,
-            "firstphase_width": p.firstphase_width,
-            "firstphase_height": p.firstphase_height
+            "hr_scale": p.hr_scale,
+            "hr_upscaler": p.hr_upscaler,
+            "hr_second_pass_steps": p.hr_second_pass_steps,
+            "hr_resize_x": p.hr_resize_x,
+            "hr_resize_y": p.hr_resize_y,
         }
+        if p.hr_upscale_to_x != 0 or p.hr_upscale_to_y != 0:
+            t2i_args.update({
+                "firstphase_width": p.width,
+                "firstphase_height": p.height,
+                "width": p.hr_upscale_to_x,
+                "height": p.hr_upscale_to_y,
+            })
     
     if isinstance(p, StableDiffusionProcessingImg2Img):
         i2i_args = {
@@ -359,8 +372,8 @@ def copy_processing(p: StableDiffusionProcessing):
     pp = type(p)(**args)
     
     pp.prompt_for_display = p.prompt_for_display
-    pp.paste_to = p.paste_to
-    pp.color_corrections = p.color_corrections
+    pp.paste_to = p.paste_to # type: ignore
+    pp.color_corrections = p.color_corrections # type: ignore
     pp.sampler_noise_scheduler_override = p.sampler_noise_scheduler_override
     pp.is_using_inpainting_conditioning = p.is_using_inpainting_conditioning
     pp.scripts = p.scripts
@@ -373,7 +386,8 @@ def copy_processing(p: StableDiffusionProcessing):
     for attr in [
         "sampler",
         "truncate_x", "truncate_y",
-        "init_latent", "latent_mask", "mask_for_overlay", "mask", "nmask", "image_conditioning"
+        "init_latent", "latent_mask", "mask_for_overlay", "mask", "nmask", "image_conditioning",
+        
     ]:
         if hasattr(p, attr):
             setattr(pp, attr, getattr(p, attr))
