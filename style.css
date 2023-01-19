@@ -34,7 +34,8 @@
     font-size: x-small;
     background-color: rgb(255 255 255 / var(--tw-bg-opacity));
     z-index: 500;
-    width: 75%;
+    width: auto;
+    max-width: 75%;
     border: 1px solid rgb(204 204 204 / var(--tw-bg-opacity));
     padding: 0.5em 1em;
 }
@@ -42,4 +43,12 @@
 .dark .dumpunet-tooltip-parent:hover .dumpunet-tooltip {
     background-color: rgb(59 77 103 / var(--tw-bg-opacity));
     border-color: rgb(128 128 128 / var(--tw-bg-opacity));
+}
+
+.dumpunet-description {
+    /* font-family: monospace; */
+    font-size: small;
+    margin: 0 0.5em;
+    padding: 0 0.5em;
+    border-left: 0.5em solid #888;
 }
