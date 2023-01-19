@@ -21,7 +21,6 @@ class Script(scripts.Script):
         super().__init__()
         self.batch_num = 0
         self.steps_on_batch = 0
-        self.prompt_error = ""
     
     def title(self):
         return "Dump U-Net features"
@@ -116,9 +115,6 @@ class Script(scripts.Script):
                         placeholder="eg. /home/hnmr/unet/",
                         elem_id=id("layerprompt-diff-dumppath")
                     )
-                    
-                    #with gr.Accordion("Prompt Errors", open=False):
-                    #    prompt_error = gr.HTML(elem_id="dumpunet-layerprompt-errors")
                         
         return [
             unet_features_enabled,
@@ -176,8 +172,6 @@ class Script(scripts.Script):
             diff_path: str,
     ):
                   
-        self.prompt_error = ""
-        
         if not unet_features_enabled and not layerprompt_enabled:
             return process_images(p)
         
@@ -272,9 +266,7 @@ class Script(scripts.Script):
         return proc
     
     def notify_error(self, e: Exception):
-        if isinstance(e, BadPromptError):
-            if self.prompt_error is not None:
-                self.prompt_error = str(e)
+        pass
 
 def exec(
     p: StableDiffusionProcessing,
