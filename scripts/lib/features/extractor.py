@@ -63,15 +63,12 @@ class FeatureExtractor:
         self.path = path
         
     def __enter__(self):
-        pass
+        self.extracted_features = MultiImageFeatures()
     
     def __exit__(self, exc_type, exc_value, traceback):
         for handle in self._handles:
             handle.remove()
         self._handles.clear()
-        
-        self._handles = []
-        self.extracted_features = MultiImageFeatures()
     
     def setup(
         self,

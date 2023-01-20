@@ -31,11 +31,11 @@ class LayerPrompt:
     
     last_batch_num: int
     
-    def __init__(self, runner, enabled: bool):
+    def __init__(self, runner, enabled: bool, remove_layer_prompts: bool = False):
         self._runner = runner
         self._enabled = enabled
         self.o_fw = self.fw = self.model = None
-        self.remove_layer_prompts = False
+        self.remove_layer_prompts = remove_layer_prompts
         self.last_batch_num = -1
 
     def __enter__(self):
@@ -45,14 +45,11 @@ class LayerPrompt:
         if self.model is not None and self.o_fw is not None:
             self.model.diffusion_model.forward = self.o_fw
         self.o_fw = self.fw = self.model = None
-        self.remove_layer_prompts = False
         self.last_batch_num = -1
     
-    def setup(self, p: StableDiffusionProcessing, remove_layer_prompts=False):
+    def setup(self, p: StableDiffusionProcessing):
         if not self._enabled:
             return
-        
-        self.remove_layer_prompts = remove_layer_prompts
         
         old = p.sd_model.model.diffusion_model.forward # type: ignore
         new = self._create_forward_fn(

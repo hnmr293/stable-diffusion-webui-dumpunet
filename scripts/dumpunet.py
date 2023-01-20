@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import contextlib
 
 import modules.scripts as scripts
 from modules.processing import process_images, fix_seed, StableDiffusionProcessing, Processed
@@ -106,14 +107,21 @@ class Script(scripts.Script):
         
         self.debug = debug
         
-        layerprompt_diff_enabled = layerprompt_enabled and layerprompt_diff_enabled
-        
         ex = FeatureExtractor(
             self,
-            unet_features_enabled or layerprompt_diff_enabled,
+            unet_features_enabled,
             p.steps,
             layer_input,
             step_input,
+            path if path_on else None
+        )
+        
+        exlp = FeatureExtractor(
+            self,
+            layerprompt_diff_enabled,
+            p.steps,
+            lp_diff_layers,
+            lp_diff_steps,
             path if path_on else None
         )
         
@@ -129,13 +137,16 @@ class Script(scripts.Script):
             p2 = copy_processing(p)
             
             # layer prompt disabled
-            proc1, features1 = exec(p1, ex, lp, remove_layer_prompts=True)
-            if unet_features_enabled:
-                proc1 = ex.add_images(p1, proc1, features1, color)
+            lp0 = LayerPrompt(self, layerprompt_enabled, remove_layer_prompts=True)
+            proc1 = exec(p1, [lp0, ex, exlp])
+            features1 = ex.extracted_features
+            diff1 = exlp.extracted_features
+            proc1 = ex.add_images(p1, proc1, features1, color)
             # layer prompt enabled
-            proc2, features2 = exec(p2, ex, lp)
-            if unet_features_enabled:
-                proc2 = ex.add_images(p2, proc2, features2, color)
+            proc2 = exec(p2, [lp, ex, exlp])
+            features2 = ex.extracted_features
+            diff2 = exlp.extracted_features
+            proc2 = ex.add_images(p2, proc2, features2, color)
             
             assert len(proc1.images) == len(proc2.images)
             
@@ -173,7 +184,7 @@ class Script(scripts.Script):
                     os.makedirs(diff_path, exist_ok=True)
                 
             t0 = int(time.time())
-            for img_idx, step, layer, tensor in feature_diff(features1, features2):
+            for img_idx, step, layer, tensor in feature_diff(diff1, diff2):
                 canvases = tensor_to_grid_images(tensor, layer, p.width, p.height, color)
                 for canvas in canvases:
                     proc.images.append(canvas)
@@ -186,10 +197,10 @@ class Script(scripts.Script):
                 if diff_path_on:
                     basename = f"{img_idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
                     save_tensor(tensor, diff_path, basename)
-                    
             
         else:
-            proc, features = exec(p, ex, lp)
+            proc = exec(p, [lp, ex])
+            features = ex.extracted_features
             if unet_features_enabled:
                 proc = ex.add_images(p, proc, features, color)
             
@@ -203,18 +214,16 @@ class Script(scripts.Script):
 
 def exec(
     p: StableDiffusionProcessing,
-    ex: FeatureExtractor,
-    lp: LayerPrompt,
-    remove_layer_prompts: bool = False
+    extractors: list
 ):
-    with ex, lp:
-        # replace U-Net forward, and...
-        lp.setup(p, remove_layer_prompts=remove_layer_prompts)
-        ex.setup(p) # hook the replaced forward
-        # ex.__exit__ does clean up hooks
-        
+    proc = None
+    with contextlib.ExitStack() as ctx:
+        for ex in extractors:
+            ctx.enter_context(ex)
+            ex.setup(p)
         proc = process_images(p)
-        return proc, ex.extracted_features
+    assert proc is not None
+    return proc
 
 def copy_processing(p: StableDiffusionProcessing):
     args = {
