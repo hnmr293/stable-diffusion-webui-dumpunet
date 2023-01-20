@@ -1,7 +1,7 @@
 import re
 
 try:
-    from scripts.dumpunet.report import message as E
+    from scripts.lib.report import message as E
 except:
     # for debug
     def E(msg: str, title=""): return msg

@@ -4,9 +4,9 @@ from collections import defaultdict
 import torch
 from torch import Tensor
 
-from scripts.dumpunet import layerinfo
-from scripts.dumpunet.report import message as E
-from scripts.dumpunet.utils import *
+from scripts.lib import layerinfo
+from scripts.lib.report import message as E
+from scripts.lib.utils import *
 
 @dataclass
 class FeatureInfo:

@@ -5,7 +5,7 @@ import json
 
 from gradio import Blocks, Group, Tab, Row, Column, Textbox, Checkbox, HTML, Accordion
 
-from scripts.dumpunet import layerinfo
+from scripts.lib import layerinfo
 
 @dataclass
 class OutputSetting:

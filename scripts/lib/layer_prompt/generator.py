@@ -3,8 +3,8 @@ from dataclasses import dataclass, fields
 from abc import abstractmethod
 from typing import Generator as tGenerator
 
-from scripts.dumpunet import layerinfo
-from scripts.dumpunet.layer_prompt.parser import parse, bad_prompt
+from scripts.lib import layerinfo
+from scripts.lib.layer_prompt.parser import parse, bad_prompt
 
 @dataclass
 class LayerPrompts:

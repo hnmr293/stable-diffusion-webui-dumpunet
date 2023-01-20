@@ -6,11 +6,11 @@ import modules.scripts as scripts
 from modules.processing import process_images, fix_seed, StableDiffusionProcessing, Processed
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img
 
-from scripts.dumpunet.build_ui import UI
-from scripts.dumpunet.features.extractor import FeatureExtractor
-from scripts.dumpunet.features.process import feature_diff, tensor_to_grid_images, save_tensor
-from scripts.dumpunet.layer_prompt.prompt import LayerPrompt
-from scripts.dumpunet.report import message as E
+from scripts.lib.build_ui import UI
+from scripts.lib.features.extractor import FeatureExtractor
+from scripts.lib.features.process import feature_diff, tensor_to_grid_images, save_tensor
+from scripts.lib.layer_prompt.prompt import LayerPrompt
+from scripts.lib.report import message as E
 
 class Script(scripts.Script):
     

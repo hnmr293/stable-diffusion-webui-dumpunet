@@ -7,12 +7,12 @@ from torch.utils.hooks import RemovableHandle
 from modules.processing import Processed, StableDiffusionProcessing
 from modules import shared
 
-from scripts.dumpunet import layerinfo
-from scripts.dumpunet.features.featureinfo import FeatureInfo, MultiImageFeatures
-from scripts.dumpunet.features.process import feature_to_grid_images, save_features
-from scripts.dumpunet.ui import retrieve_layers, retrieve_steps
-from scripts.dumpunet.report import message as E
-from scripts.dumpunet.utils import *
+from scripts.lib import layerinfo
+from scripts.lib.features.featureinfo import FeatureInfo, MultiImageFeatures
+from scripts.lib.features.process import feature_to_grid_images, save_features
+from scripts.lib.ui import retrieve_layers, retrieve_steps
+from scripts.lib.report import message as E
+from scripts.lib.utils import *
 
 class FeatureExtractor:
     

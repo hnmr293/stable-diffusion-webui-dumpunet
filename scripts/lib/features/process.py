@@ -8,9 +8,9 @@ from PIL import Image
 
 from modules import shared
 
-from scripts.dumpunet import layerinfo
-from scripts.dumpunet.features.featureinfo import FeatureInfo, Features, MultiImageFeatures
-from scripts.dumpunet.report import message as E
+from scripts.lib import layerinfo
+from scripts.lib.features.featureinfo import FeatureInfo, Features, MultiImageFeatures
+from scripts.lib.report import message as E
 
 def feature_diff(
     features1: MultiImageFeatures,
