@@ -1,19 +1,15 @@
 import sys
 import os
 import time
-import json
-
-import gradio as gr
 
 import modules.scripts as scripts
 from modules.processing import process_images, fix_seed, StableDiffusionProcessing, Processed
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img
 
-from scripts.dumpunet import layerinfo
+from scripts.dumpunet.build_ui import UI
 from scripts.dumpunet.features.extractor import FeatureExtractor
 from scripts.dumpunet.features.process import feature_diff, tensor_to_grid_images, save_tensor
 from scripts.dumpunet.layer_prompt.prompt import LayerPrompt
-from scripts.dumpunet.layer_prompt.parser import BadPromptError
 from scripts.dumpunet.report import message as E
 
 class Script(scripts.Script):
@@ -36,111 +32,25 @@ class Script(scripts.Script):
     
     def ui(self, is_img2img):
         
-        ID_PREFIX = "dumpunet"
-        def id(x):
-            return f"{ID_PREFIX}-{'img2img' if is_img2img else 'txt2img'}-{x}"
+        result: UI = UI.build(self, is_img2img)
         
-        with gr.Group(elem_id=id("ui")):
-            with gr.Tab("U-Net features", elem_id=id("features-tab")):
-                unet_features_enabled = gr.Checkbox(
-                    label="Extract U-Net features",
-                    value=False,
-                    elem_id=id("features-checkbox")
-                )
-                
-                with gr.Group(elem_id=id("features-image")):
-                    layer = gr.Textbox(
-                        label="Layers",
-                        placeholder="eg. IN00-OUT03(+2),OUT10",
-                        elem_id=id("features-layer"),
-                    )
-                    
-                    layer_setting_hidden = gr.HTML(
-                        json.dumps(layerinfo.Settings),
-                        visible=False,
-                        elem_id=id("features-layer_setting")
-                    )
-                    
-                    steps = gr.Textbox(
-                        label="Image saving steps",
-                        placeholder="eg. 1,5-20(+5)",
-                        elem_id=id("features-steps")
-                    )
-                    
-                    color = gr.Checkbox(
-                        False,
-                        label="Use red/blue color map (red=POSITIVE, black=ZERO, blue=NEGATIVE)",
-                        elem_id=id("features-color")
-                    )
-                    
-                with gr.Group(elem_id=id("features-tensor")):
-                    path_on = gr.Checkbox(
-                        False,
-                        label="Dump feature tensors to files",
-                        elem_id=id("features-dump")
-                    )
-                    
-                    path = gr.Textbox(
-                        label="Output path",
-                        placeholder="eg. /home/hnmr/unet/",
-                        elem_id=id("features-dumppath")
-                    )
-            
-                with gr.Accordion("Selected Layer Info", open=False):
-                    layer_info = gr.HTML(elem_id=id("features-layerinfo"))
-        
-            with gr.Tab("Layer Prompt", elem_id=id("layerprompt-tab")):
-                layerprompt_enabled = gr.Checkbox(
-                    label="Enable Layer Prompt",
-                    value=False,
-                    elem_id=id("layerprompt-checkbox")
-                )
-                
-                with gr.Group(elem_id=id("layerprompt-diff")):
-                    layerprompt_diff_enabled = gr.Checkbox(
-                        label="Output difference map of U-Net features between with and without Layer Prompt",
-                        value=False,
-                        elem_id=id("layerprompt-diff-checkbox")
-                    )
-                        
-                    diff_path_on = gr.Checkbox(
-                        False,
-                        label="Dump difference tensors to files",
-                        elem_id=id("layerprompt-diff-dump")
-                    )
-                    
-                    diff_path = gr.Textbox(
-                        label="Output path",
-                        placeholder="eg. /home/hnmr/unet/",
-                        elem_id=id("layerprompt-diff-dumppath")
-                    )
-                
-            with gr.Tab("Settings"):
-                debug = gr.Checkbox(
-                    label="log to stderr",
-                    value=self.debug
-                )
-                
-                def set_debug(x):
-                    self.debug = x
-
-                debug.change(
-                    fn=set_debug,
-                    inputs=debug
-                )
-
         return [
-            unet_features_enabled,
-            layer,
-            steps,
-            color,
-            path_on,
-            path,
-            layerprompt_enabled,
-            layerprompt_diff_enabled,
-            diff_path_on,
-            diff_path,
-            debug,
+            result.unet.enabled,
+            result.unet.settings.layers,
+            result.unet.settings.steps,
+            result.unet.settings.color,
+            result.unet.dump.enabled,
+            result.unet.dump.path,
+            
+            result.lp.enabled,
+            result.lp.diff_enabled,
+            result.lp.diff_settings.layers,
+            result.lp.diff_settings.steps,
+            result.lp.diff_settings.color,
+            result.lp.diff_dump.enabled,
+            result.lp.diff_dump.path,
+            
+            result.debug.log,
         ]
     
     def process(self, p, *args):
@@ -172,16 +82,22 @@ class Script(scripts.Script):
         
     def run_impl(self,
             p: StableDiffusionProcessing,
+            
             unet_features_enabled: bool,
             layer_input: str,
             step_input: str,
             color: bool,
             path_on: bool,
             path: str,
+            
             layerprompt_enabled: bool,
             layerprompt_diff_enabled: bool,
+            lp_diff_layers: str,
+            lp_diff_steps: str,
+            lp_diff_color: bool,
             diff_path_on: bool,
             diff_path: str,
+            
             debug: bool,
     ):
                   

@@ -9,6 +9,9 @@ onUiUpdate(() => {
 
         const app = gradioApp();
         if (!app || app === document) return;
+        if (!app.querySelector('#dumpunet-txt2img-ui')
+            && !app.querySelector('#dumpunet-img2img-ui'))
+            return;
 
         const sliders = {};
         for (let mode of ['txt2img', 'img2img']) {
@@ -30,8 +33,6 @@ onUiUpdate(() => {
             }
         }
 
-        globalThis.DumpUnet.applySizeCallbackCalled = true;
-
         const layer_names = [
             // 'IN@@',
             'IN00', 'IN01', 'IN02', 'IN03', 'IN04', 'IN05', 'IN06', 'IN07', 'IN08', 'IN09', 'IN10', 'IN11',
@@ -50,7 +51,7 @@ onUiUpdate(() => {
             const m2 = re_range.exec(token);
             if (m1 !== null) {
                 const idx = layer_names.indexOf(m1[1]);
-                return [idx];
+                return idx < 0 ? [] : [idx];
             }
             if (m2 !== null) {
                 let [_, from, to, step] = m2;
@@ -78,50 +79,64 @@ onUiUpdate(() => {
             return [...new Set(layers)].sort().map(n => layer_names[n]);
         };
 
+        const updates = [];
         for (let mode of ['txt2img', 'img2img']) {
-            const layer_input_ele = app.querySelector(`#dumpunet-${mode}-features-layer textarea`);
-            layer_input_ele.addEventListener('input', e => {
-                const input = layer_input_ele.value;
-                const layers = parse_layers(input);
-                layer_input_ele.style.backgroundColor = layers.length == 0 ? 'pink' : 'white';
-            }, false);
+            for (let tab of ['features', 'layerprompt']) {
+                const layer_input_ele =
+                    app.querySelector(`#dumpunet-${mode}-${tab}-layer textarea`)
+                    || app.querySelector(`#dumpunet-${mode}-${tab}-diff-layer textarea`);
 
-            const update_info = () => {
-                const layer_input = layer_input_ele.value;
-                const layers = parse_layers(layer_input);
+                layer_input_ele.addEventListener('input', e => {
+                    const input = layer_input_ele.value;
+                    const layers = parse_layers(input);
+                    if (layers.length == 0) {
+                        layer_input_ele.classList.add('invalidinput');
+                    } else {
+                        layer_input_ele.classList.remove('invalidinput');
+                    }
+                }, false);
 
-                const
-                    width_slider = sliders[mode].width_slider,
-                    height_slider = sliders[mode].height_slider,
-                    w = +width_slider.value,
-                    h = +height_slider.value,
-                    iw = Math.max(1, Math.ceil(w / 64)),
-                    ih = Math.max(1, Math.ceil(h / 64));
+                const update_info = () => {
+                    const layer_input = layer_input_ele.value;
+                    const layers = parse_layers(layer_input);
 
-                let html = '[Selected Layer Info]<br/>';
+                    const
+                        width_slider = sliders[mode].width_slider,
+                        height_slider = sliders[mode].height_slider,
+                        w = +width_slider.value,
+                        h = +height_slider.value,
+                        iw = Math.max(1, Math.ceil(w / 64)),
+                        ih = Math.max(1, Math.ceil(h / 64));
 
-                for (let layer of layers) {
-                    const info = JSON.parse(app.querySelector(`#dumpunet-${mode}-features-layer_setting`).textContent)[layer];
-                    info[0][1] *= ih;
-                    info[0][2] *= iw;
-                    info[1][1] *= ih;
-                    info[1][2] *= iw;
-                    html += `
+                    let html = '';
+
+                    for (let layer of layers) {
+                        const info = JSON.parse(app.querySelector(`#dumpunet-${mode}-${tab}-layer_setting`).textContent)[layer];
+                        info[0][1] *= ih;
+                        info[0][2] *= iw;
+                        info[1][1] *= ih;
+                        info[1][2] *= iw;
+                        html += `
 Name:&nbsp;&nbsp;&nbsp;${layer}<br/>
 Input:&nbsp;&nbsp;(${info[0].join(',')})<br/>
 Outout:&nbsp;(${info[1].join(',')})<br/>
 ---<br/>
 `.trim();
+                    }
+
+                    app.querySelector(`#dumpunet-${mode}-${tab}-layerinfo`).innerHTML = html.trim();
                 }
 
-                app.querySelector(`#dumpunet-${mode}-features-layerinfo`).innerHTML = html.trim();
+                updates.push(update_info);
             };
 
-
+            const update_info = () => updates.forEach(x => x());
             app.addEventListener('input', update_info, false);
             app.addEventListener('change', update_info, false);
 
             update_info();
+
+            globalThis.DumpUnet.applySizeCallbackCalled = true;
         }
     };
 
