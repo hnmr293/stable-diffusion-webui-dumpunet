@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Callable, TypeVar, Generic, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING
 
 from torch import nn
 from torch.utils.hooks import RemovableHandle
@@ -7,7 +7,6 @@ from torch.utils.hooks import RemovableHandle
 from modules.processing import StableDiffusionProcessing
 
 from scripts.lib.features.featureinfo import MultiImageFeatures
-from scripts.lib.ui import retrieve_layers, retrieve_steps
 from scripts.lib.report import message as E
 
 if TYPE_CHECKING:
@@ -156,46 +155,3 @@ class ExtractorBase:
     def log(self, msg: str):
         if self._runner.debug:
             print(E(msg), file=sys.stderr)
-
-
-
-TInfo = TypeVar("TInfo")
-class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
-    
-    # image_index -> step -> Features
-    extracted_features: MultiImageFeatures[TInfo]
-    
-    # steps to process
-    steps: list[int]
-    
-    # layers to process
-    layers: list[str]
-    
-    def __init__(
-        self,
-        runner: "Script",
-        enabled: bool,
-        total_steps: int,
-        layer_input: str,
-        step_input: str
-    ):
-        super().__init__(runner, enabled)
-        
-        self.extracted_features = MultiImageFeatures()
-        self.steps = []
-        self.layers = []
-        
-        if not self.enabled:
-            return
-        
-        assert layer_input is not None and layer_input != "", E("<Layers> must not be empty.")
-        
-        self.layers = retrieve_layers(layer_input)
-        self.steps = (
-            retrieve_steps(step_input) 
-            or list(range(1, total_steps+1))
-        )
-    
-    def on_setup(self):
-        self.extracted_features = MultiImageFeatures()
-    

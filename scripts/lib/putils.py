@@ -1,4 +1,6 @@
-from functools import reduce
+from dataclasses import dataclass
+
+from PIL.Image import Image
 
 from modules.processing import StableDiffusionProcessing
 from modules.processing import StableDiffusionProcessingTxt2Img
@@ -136,3 +138,55 @@ def add_ref(proc: Processed, ref_idx: int, image, infotext: str = ""):
     proc.all_seeds.append(proc.all_seeds[ref_idx])
     proc.all_subseeds.append(proc.all_subseeds[ref_idx])
     proc.infotexts.append(infotext)
+
+@dataclass
+class ProcessedItem:
+    image: Image
+    seed: int
+    subseed: int
+    prompt: str
+    negative_prompt: str
+    infotext: str
+
+class ProcessedBuilder:
+    
+    items: list[ProcessedItem]
+    
+    def __init__(self):
+        self.items = []
+
+    def __len__(self):
+        return len(self.items)
+    
+    def add(self, image: Image, seed: int, subseed: int|None, prompt: str, neg_prompt: str, infotext: str, additional_info: dict = {}):
+        if subseed is None:
+            subseed = -1
+        
+        if len(additional_info) != 0:
+            if 0 < len(infotext):
+                infotext += "\n"
+            infotext += ", ".join([f"{k}: {v}" for k, v in additional_info.items()])
+        
+        self.items.append(ProcessedItem(
+            image,
+            seed,
+            subseed,
+            prompt,
+            neg_prompt,
+            infotext
+        ))
+    
+    def to_proc(self, p: StableDiffusionProcessing, base_proc: Processed):
+        items = self.items
+        return Processed(
+            p,
+            [item.image for item in items],
+            seed=base_proc.seed,
+            info=base_proc.info,
+            subseed=base_proc.subseed,
+            all_seeds=[item.seed for item in items],
+            all_subseeds=[item.subseed for item in items],
+            all_prompts=[item.prompt for item in items],
+            all_negative_prompts=[item.negative_prompt for item in items],
+            infotexts=[item.infotext for item in items]
+        )
