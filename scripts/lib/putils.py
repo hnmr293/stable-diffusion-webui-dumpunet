@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from collections import defaultdict
+from typing import Any
 
 from PIL.Image import Image
 
@@ -148,15 +150,33 @@ class ProcessedItem:
     negative_prompt: str
     infotext: str
 
+@dataclass
+class ProcessedItemRef:
+    ref_idx: int
+    image: Image|None
+    infotext: str|None
+
 class ProcessedBuilder:
+    
+    previews: list[tuple[Image,str]]
     
     items: list[ProcessedItem]
     
+    # `index of self.items` -> ProcessedItemRef
+    ref_items: defaultdict[int, list[ProcessedItemRef]]
+    
     def __init__(self):
+        self.previews = []
         self.items = []
+        self.ref_items = defaultdict(lambda: [])
 
-    def __len__(self):
-        return len(self.items)
+    def add_preview(self, image: Image, infotext: str, additional_info: dict = {}):
+        if len(additional_info) != 0:
+            if 0 < len(infotext):
+                infotext += "\n"
+            infotext += ", ".join([f"{k}: {v}" for k, v in additional_info.items()])
+        
+        self.previews.append((image, infotext))
     
     def add(self, image: Image, seed: int, subseed: int|None, prompt: str, neg_prompt: str, infotext: str, additional_info: dict = {}):
         if subseed is None:
@@ -176,11 +196,61 @@ class ProcessedBuilder:
             infotext
         ))
     
+    def add_ref(self, ref_idx: int, image: Image|None, infotext: str|None, additional_info: dict = {}):
+        if (not 0 <= ref_idx < len(self.items)) and (not -len(self.items) < ref_idx <= -1):
+            raise IndexError(f"given={ref_idx}, #items={len(self.items)}")
+        
+        if ref_idx < 0:
+            ref_idx += len(self.items)
+        
+        if len(additional_info) != 0:
+            if infotext is None:
+                infotext = ""
+            if 0 < len(infotext):
+                infotext += "\n"
+            infotext += ", ".join([f"{k}: {v}" for k, v in additional_info.items()])
+        
+        self.ref_items[ref_idx].append(ProcessedItemRef(
+            ref_idx,
+            image,
+            infotext
+        ))
+    
+    def add_proc(self, proc: Processed):
+        # For Dynamic Prompt Extension
+        # which is not append subseeds...
+        subseeds = proc.all_subseeds.copy()
+        while len(subseeds) < len(proc.all_seeds):
+            subseeds.append(subseeds[0] if 0 < len(subseeds) else -1)
+        
+        preview, rest = proc.images[:proc.index_of_first_image], proc.images[proc.index_of_first_image:]
+        txt, txt_rest = proc.infotexts[:proc.index_of_first_image], proc.infotexts[proc.index_of_first_image:]
+        for img, t in zip(preview, txt):
+            self.add_preview(img, t)
+        
+        def get(L: list, idx: int, default: Any = None):
+            if idx < len(L):
+                return L[idx]
+            elif 0 < len(L):
+                return L[-1]
+            else:
+                return default
+        
+        for idx, (img, txt) in enumerate(zip(rest, txt_rest)):
+            self.add(
+                img,
+                get(proc.all_seeds, idx, -1),
+                get(proc.all_subseeds, idx, None),
+                get(proc.all_prompts, idx, ""),
+                get(proc.all_negative_prompts, idx, ""),
+                txt
+            )
+    
     def to_proc(self, p: StableDiffusionProcessing, base_proc: Processed):
-        items = self.items
+        items = self._fix_all()
         return Processed(
             p,
-            [item.image for item in items],
+            [image for image, infotext in self.previews] + [item.image for item in items],
             seed=base_proc.seed,
             info=base_proc.info,
             subseed=base_proc.subseed,
@@ -188,5 +258,28 @@ class ProcessedBuilder:
             all_subseeds=[item.subseed for item in items],
             all_prompts=[item.prompt for item in items],
             all_negative_prompts=[item.negative_prompt for item in items],
-            infotexts=[item.infotext for item in items]
+            infotexts=[infotext for image, infotext in self.previews] + [item.infotext for item in items],
+            index_of_first_image=len(self.previews)
         )
+    
+    def _fix(self, ref: ProcessedItemRef):
+        assert 0 <= ref.ref_idx < len(self.items)
+        item = self.items[ref.ref_idx]
+        return ProcessedItem(
+            ref.image if ref.image is not None else item.image,
+            item.seed,
+            item.subseed,
+            item.prompt,
+            item.negative_prompt,
+            ref.infotext if ref.infotext is not None else item.infotext
+        )
+    
+    def _fix_all(self):
+        result: list[ProcessedItem] = []
+        for idx, item in enumerate(self.items):
+            refs = self.ref_items.get(idx, [])
+            fixed = [self._fix(ref) for ref in refs]
+            result.append(item)
+            result.extend(fixed)
+        return result
+            

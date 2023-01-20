@@ -12,6 +12,7 @@ from scripts.lib.feature_extractor import FeatureExtractorBase
 from scripts.lib.features.extractor import FeatureExtractor
 from scripts.lib.features.utils import feature_diff, feature_to_grid_images
 from scripts.lib.tutils import save_tensor
+from scripts.lib.putils import ProcessedBuilder
 from scripts.lib.layer_prompt.prompt import LayerPrompt
 from scripts.lib.attention.extractor import AttentionExtractor
 from scripts.lib.report import message as E
@@ -158,7 +159,7 @@ class Script(scripts.Script):
             attn_path if attn_path_on else None
         )
         
-        if layerprompt_diff_enabled:
+        if layerprompt_enabled and layerprompt_diff_enabled:
             fix_seed(p)
             
             p1 = putils.copy(p)
@@ -166,18 +167,20 @@ class Script(scripts.Script):
             
             # layer prompt disabled
             lp0 = LayerPrompt(self, layerprompt_enabled, remove_layer_prompts=True)
-            proc1 = exec(p1, lp0, [ex, exlp, at])
-            features1 = ex.extracted_features
-            diff1 = exlp.extracted_features
-            proc1 = ex.add_images(p1, proc1, features1, color)
-            proc1 = at.add_images(p1, proc1, at.extracted_features, attn_color)
+            proc1, features1, diff1, attn1 = exec(p1, lp0, [ex, exlp, at])
+            builder1 = ProcessedBuilder()
+            builder1.add_proc(proc1)
+            ex.add_images(p1, builder1, features1, color)
+            at.add_images(p1, builder1, attn1, attn_color)
             # layer prompt enabled
-            proc2 = exec(p2, lp, [ex, exlp, at])
-            features2 = ex.extracted_features
-            diff2 = exlp.extracted_features
-            proc2 = ex.add_images(p2, proc2, features2, color)
-            proc2 = at.add_images(p2, proc2, at.extracted_features, attn_color)
+            proc2, features2, diff2, attn2 = exec(p2, lp, [ex, exlp, at])
+            builder2 = ProcessedBuilder()
+            builder2.add_proc(proc1)
+            ex.add_images(p2, builder2, features2, color)
+            at.add_images(p2, builder2, attn2, attn_color)
             
+            proc1 = builder1.to_proc(p1, proc1)
+            proc2 = builder2.to_proc(p2, proc2)
             assert len(proc1.images) == len(proc2.images)
             
             proc = putils.merge(p, proc1, proc2)
@@ -201,9 +204,12 @@ class Script(scripts.Script):
                     save_tensor(tensor, diff_path, basename)
             
         else:
-            proc = exec(p, lp, [ex, at])
-            proc = ex.add_images(p, proc, ex.extracted_features, color)
-            proc = at.add_images(p, proc, at.extracted_features, attn_color)
+            proc, features1, attn1 = exec(p, lp, [ex, at])
+            builder = ProcessedBuilder()
+            builder.add_proc(proc)
+            ex.add_images(p, builder, features1, color)
+            at.add_images(p, builder, attn1, attn_color)
+            proc = builder.to_proc(p, proc)
             
         return proc
     
@@ -228,4 +234,4 @@ def exec(
             proc = process_images(p)
     
     assert proc is not None
-    return proc
+    return proc, *[ex.extracted_features for ex in extractors]

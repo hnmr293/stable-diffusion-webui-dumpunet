@@ -74,59 +74,25 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
     def add_images(
         self,
         p: StableDiffusionProcessing,
-        proc: Processed,
+        builder: ProcessedBuilder,
         extracted_features: MultiImageFeatures[TInfo],
         color: bool
     ):
         
         if not self.enabled:
-            return proc
+            return
         
         if shared.state.interrupted:
-            return proc
-        
-        self._fixup(proc)
-        index0 = proc.index_of_first_image
-        preview_images, rest_images = proc.images[:index0], proc.images[index0:]
-        
-        assert rest_images is not None and len(rest_images) != 0, E("empty output?")
-        
-        # Now `rest_images` is the list of the images we are interested in.
-        
-        builder = ProcessedBuilder()
-        for image in preview_images:
-            preview_info = proc.infotexts.pop(0)
-            builder.add(image, proc.seed, proc.subseed, proc.prompt, proc.negative_prompt, preview_info)
-        
-        assert all([
-            len(rest_images) == len(x) for x 
-            in [
-                proc.all_seeds,
-                proc.all_subseeds,
-                proc.all_prompts,
-                proc.all_negative_prompts,
-                proc.infotexts
-            ]
-        ]), E(f"#images={len(rest_images)}, #seeds={len(proc.all_seeds)}, #subseeds={len(proc.all_subseeds)}, #pr={len(proc.all_prompts)}, #npr={len(proc.all_negative_prompts)}, #info={len(proc.infotexts)}")
+            return
         
         sorted_step_features = list(sorted_values(extracted_features))
-        assert len(rest_images) == len(sorted_step_features), E(f"#images={len(rest_images)}, #features={len(sorted_step_features)}")
+        assert len(builder.items) == len(sorted_step_features), E(f"#images={len(builder.items)}, #features={len(sorted_step_features)}")
         
         t0 = int(time.time()) # for binary files' name
         shared.total_tqdm.clear()
         shared.total_tqdm.updateTotal(len(sorted_step_features) * len(self.steps) * len(self.layers))
         
-        image_args = zip(
-            proc.all_seeds,
-            proc.all_subseeds,
-            proc.all_prompts,
-            proc.all_negative_prompts,
-            proc.infotexts
-        )
-        
-        for idx, (image, step_features, args) in enumerate(zip(rest_images, sorted_step_features, image_args)):
-            builder.add(image, *args)
-            
+        for idx, step_features in enumerate(sorted_step_features):
             for step, features in sorted_items(step_features):
                 for layer, feature in features:
                     
@@ -135,15 +101,13 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
                     
                     canvases = self.feature_to_grid_images(feature, layer, idx, step, p.width, p.height, color)
                     for canvas in canvases:
-                        builder.add(canvas, *args, {"Layer Name": layer, "Feature Steps": step})
+                        builder.add_ref(idx, canvas, None, {"Layer Name": layer, "Feature Steps": step})
                     
                     if self.path is not None:
                         basename = f"{idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
                         self.save_features(feature, layer, idx, step, p.width, p.height, self.path, basename)
                     
                     shared.total_tqdm.update()
-        
-        return builder.to_proc(p, proc)
         
     def feature_to_grid_images(self, feature: TInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: bool):
         raise NotImplementedError(f"{self.__class__.__name__}.feature_to_grid_images")
