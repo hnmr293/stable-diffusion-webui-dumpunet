@@ -14,7 +14,8 @@ from scripts.lib.report import message as E
 
 def feature_diff(
     features1: MultiImageFeatures,
-    features2: MultiImageFeatures
+    features2: MultiImageFeatures,
+    abs: bool = False
 ) -> Generator[tuple[int,int,str,Tensor],None,None]:
     # features1 and features2 must be have same keys...
     for img_idx in sorted(features1.keys()):
@@ -39,7 +40,11 @@ def feature_diff(
                 a, b = l1.output, l2.output
                 assert a.size() == b.size()
                 assert len(a.size()) == 3
-                c = (b - a).abs()
+                
+                if abs:
+                    c = (b - a).abs()
+                else:
+                    c = b - a
                 
                 yield img_idx, step, layer, c
 
