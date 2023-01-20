@@ -81,7 +81,7 @@ onUiUpdate(() => {
 
         const updates = [];
         for (let mode of ['txt2img', 'img2img']) {
-            for (let tab of ['features', 'layerprompt']) {
+            for (let tab of ['features', 'attention', 'layerprompt']) {
                 const layer_input_ele =
                     app.querySelector(`#dumpunet-${mode}-${tab}-layer textarea`)
                     || app.querySelector(`#dumpunet-${mode}-${tab}-diff-layer textarea`);

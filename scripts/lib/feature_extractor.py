@@ -133,22 +133,22 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
                     if shared.state.interrupted:
                         break
                     
-                    canvases = self.feature_to_grid_images(feature, layer, p.width, p.height, color)
+                    canvases = self.feature_to_grid_images(feature, layer, idx, step, p.width, p.height, color)
                     for canvas in canvases:
                         builder.add(canvas, *args, {"Layer Name": layer, "Feature Steps": step})
                     
                     if self.path is not None:
                         basename = f"{idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
-                        self.save_features(feature, self.path, basename)
+                        self.save_features(feature, layer, idx, step, p.width, p.height, self.path, basename)
                     
                     shared.total_tqdm.update()
         
         return builder.to_proc(p, proc)
         
-    def feature_to_grid_images(self, feature: TInfo, layer: str, width: int, height: int, color: bool):
+    def feature_to_grid_images(self, feature: TInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: bool):
         raise NotImplementedError(f"{self.__class__.__name__}.feature_to_grid_images")
     
-    def save_features(self, feature: TInfo, path: str, basename: str):
+    def save_features(self, feature: TInfo, layer: str, img_idx: int, step: int, width: int, height: int, path: str, basename: str):
         raise NotImplementedError(f"{self.__class__.__name__}.save_features")
     
     def _fixup(self, proc: Processed):

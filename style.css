@@ -2,6 +2,8 @@
 #dumpunet-img2img-features-layerinfo,
 #dumpunet-txt2img-layerprompt-layerinfo,
 #dumpunet-img2img-layerprompt-layerinfo,
+#dumpunet-txt2img-attention-layerinfo,
+#dumpunet-img2img-attention-layerinfo,
 #dumpunet-txt2img-layerprompt-errors,
 #dumpunet-img2img-layerprompt-errors {
     font-family: monospace;
@@ -9,6 +11,8 @@
 
 #dumpunet-txt2img-features-checkbox,
 #dumpunet-img2img-features-checkbox,
+#dumpunet-txt2img-attention-checkbox,
+#dumpunet-img2img-attention-checkbox,
 #dumpunet-txt2img-layerprompt-checkbox,
 #dumpunet-img2img-layerprompt-checkbox {
     /* background-color: #fff8f0; */
@@ -17,6 +21,8 @@
 
 .dark #dumpunet-txt2img-features-checkbox,
 .dark #dumpunet-img2img-features-checkbox,
+.dark #dumpunet-txt2img-attention-checkbox,
+.dark #dumpunet-img2img-attention-checkbox,
 .dark #dumpunet-txt2img-layerprompt-checkbox,
 .dark #dumpunet-img2img-layerprompt-checkbox {
     /*background-color: inherit;

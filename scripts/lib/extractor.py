@@ -12,12 +12,34 @@ from scripts.lib.report import message as E
 if TYPE_CHECKING:
     from scripts.dumpunet import Script
 
+class ForwardHook:
+    
+    def __init__(self, module: nn.Module, fn: Callable[[nn.Module, Callable[..., Any]], Any]):
+        self.o = module.forward
+        self.fn = fn
+        self.module = module
+        self.module.forward = self.forward
+    
+    def remove(self):
+        if self.module is not None and self.o is not None:
+            self.module.forward = self.o
+            self.module = None
+            self.o = None
+        self.fn = None
+    
+    def forward(self, *args, **kwargs):
+        if self.module is not None and self.o is not None:
+            if self.fn is not None:
+                return self.fn(self.module, self.o, *args, **kwargs)
+        return None
+        
+
 class ExtractorBase:
     
     def __init__(self, runner: "Script", enabled: bool):
         self._runner = runner
         self._enabled = enabled
-        self._handles: list[RemovableHandle] = []
+        self._handles: list[RemovableHandle|ForwardHook] = []
         self._batch_num = 0
         self._steps_on_batch = 0
     
@@ -152,6 +174,15 @@ class ExtractorBase:
         assert isinstance(module, nn.Module)
         self._handles.append(module.register_forward_pre_hook(fn))
 
+    def hook_forward(
+        self,
+        module: nn.Module|Any,
+        fn: Callable[..., Any]
+    ):
+        assert module is not None
+        assert isinstance(module, nn.Module)
+        self._handles.append(ForwardHook(module, fn))
+    
     def log(self, msg: str):
         if self._runner.debug:
             print(E(msg), file=sys.stderr)

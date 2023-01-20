@@ -69,10 +69,10 @@ class FeatureExtractor(FeatureExtractorBase[FeatureInfo]):
             target = get_unet_layer(unet, layer)
             self.hook_layer(target, create_hook(layer))
     
-    def feature_to_grid_images(self, feature: FeatureInfo, layer: str, width: int, height: int, color: bool):
+    def feature_to_grid_images(self, feature: FeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: bool):
         return feature_to_grid_images(feature, layer, width, height, color)
     
-    def save_features(self, feature: FeatureInfo, path: str, basename: str):
+    def save_features(self, feature: FeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, path: str, basename: str):
         save_features(feature, path, basename)
         
 def get_unet_layer(unet, layername: str) -> nn.modules.Module:

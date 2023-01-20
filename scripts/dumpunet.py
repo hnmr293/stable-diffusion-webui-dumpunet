@@ -13,6 +13,7 @@ from scripts.lib.features.extractor import FeatureExtractor
 from scripts.lib.features.utils import feature_diff, feature_to_grid_images
 from scripts.lib.tutils import save_tensor
 from scripts.lib.layer_prompt.prompt import LayerPrompt
+from scripts.lib.attention.extractor import AttentionExtractor
 from scripts.lib.report import message as E
 from scripts.lib import putils
 
@@ -45,6 +46,13 @@ class Script(scripts.Script):
             result.unet.settings.color,
             result.unet.dump.enabled,
             result.unet.dump.path,
+            
+            result.attn.enabled,
+            result.attn.settings.layers,
+            result.attn.settings.steps,
+            result.attn.settings.color,
+            result.attn.dump.enabled,
+            result.attn.dump.path,
             
             result.lp.enabled,
             result.lp.diff_enabled,
@@ -95,6 +103,13 @@ class Script(scripts.Script):
             path_on: bool,
             path: str,
             
+            attn_enabled: bool,
+            attn_layers: str,
+            attn_steps: str,
+            attn_color: bool,
+            attn_path_on: bool,
+            attn_path: str,
+            
             layerprompt_enabled: bool,
             layerprompt_diff_enabled: bool,
             lp_diff_layers: str,
@@ -106,7 +121,7 @@ class Script(scripts.Script):
             debug: bool,
     ):
                   
-        if not unet_features_enabled and not layerprompt_enabled:
+        if not unet_features_enabled and not attn_enabled and not layerprompt_enabled:
             return process_images(p)
         
         self.debug = debug
@@ -134,6 +149,15 @@ class Script(scripts.Script):
             layerprompt_enabled,
         )
         
+        at = AttentionExtractor(
+            self,
+            attn_enabled,
+            p.steps,
+            attn_layers,
+            attn_steps,
+            attn_path if attn_path_on else None
+        )
+        
         if layerprompt_diff_enabled:
             fix_seed(p)
             
@@ -142,15 +166,17 @@ class Script(scripts.Script):
             
             # layer prompt disabled
             lp0 = LayerPrompt(self, layerprompt_enabled, remove_layer_prompts=True)
-            proc1 = exec(p1, lp0, [ex, exlp])
+            proc1 = exec(p1, lp0, [ex, exlp, at])
             features1 = ex.extracted_features
             diff1 = exlp.extracted_features
             proc1 = ex.add_images(p1, proc1, features1, color)
+            proc1 = at.add_images(p1, proc1, at.extracted_features, attn_color)
             # layer prompt enabled
-            proc2 = exec(p2, lp, [ex, exlp])
+            proc2 = exec(p2, lp, [ex, exlp, at])
             features2 = ex.extracted_features
             diff2 = exlp.extracted_features
             proc2 = ex.add_images(p2, proc2, features2, color)
+            proc2 = at.add_images(p2, proc2, at.extracted_features, attn_color)
             
             assert len(proc1.images) == len(proc2.images)
             
@@ -175,10 +201,9 @@ class Script(scripts.Script):
                     save_tensor(tensor, diff_path, basename)
             
         else:
-            proc = exec(p, lp, [ex])
-            features = ex.extracted_features
-            if unet_features_enabled:
-                proc = ex.add_images(p, proc, features, color)
+            proc = exec(p, lp, [ex, at])
+            proc = ex.add_images(p, proc, ex.extracted_features, color)
+            proc = at.add_images(p, proc, at.extracted_features, attn_color)
             
         return proc
     

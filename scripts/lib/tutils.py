@@ -1,10 +1,25 @@
 import os
+import math
 
 from torch import Tensor
 import numpy as np
 from PIL import Image
 
 from modules import shared
+
+from scripts.lib import layerinfo
+from scripts.lib.report import message as E
+
+def tensor_to_grid_images(
+    tensor: Tensor,
+    layer: str,
+    width: int,
+    height: int,
+    color: bool
+):
+    grid_x, grid_y = get_grid_num(layer, width, height)
+    canvases = tensor_to_image(tensor, grid_x, grid_y, color)
+    return canvases
 
 def tensor_to_image(
             tensor: Tensor,
@@ -93,3 +108,30 @@ def _tensor_to_image(array: np.ndarray, color: bool):
             
     else:
         return np.clip(np.abs(array) * 256, 0, 255).astype(np.uint8)
+
+def get_grid_num(layer: str, width: int, height: int):
+    assert layer is not None and layer != "", E("<Layers> must not be empty.")
+    assert layer in layerinfo.Settings, E(f"Invalid <Layers> value: {layer}.")
+    _, (ch, mh, mw) = layerinfo.Settings[layer]
+    iw = math.ceil(width  / 64)
+    ih = math.ceil(height / 64)
+    w = mw * iw
+    h = mh * ih 
+    # w : width of a feature map
+    # h : height of a feature map
+    # ch: a number of a feature map
+    n = [w, h]
+    while ch % 2 == 0:
+        n[n[0]>n[1]] *= 2
+        ch //= 2
+    n[n[0]>n[1]] *= ch
+    if n[0] > n[1]:
+        while n[0] > n[1] * 2 and (n[0] // w) % 2 == 0:
+            n[0] //= 2
+            n[1] *= 2
+    else:
+        while n[0] * 2 < n[1] and (n[1] // h) % 2 == 0:
+            n[0] *= 2
+            n[1] //= 2
+    
+    return n[0] // w, n[1] // h

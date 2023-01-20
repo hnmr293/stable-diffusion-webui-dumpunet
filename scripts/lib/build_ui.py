@@ -79,6 +79,14 @@ class UNet:
     info: Info
 
 @dataclass
+class Attn:
+    tab: Tab
+    enabled: Checkbox
+    settings: OutputSetting
+    dump: DumpSetting
+    info: Info
+
+@dataclass
 class LayerPrompt:
     tab: Tab
     enabled: Checkbox
@@ -95,6 +103,7 @@ class Debug:
 @dataclass
 class UI:
     unet: UNet
+    attn: Attn
     lp: LayerPrompt
     debug: Debug
     
@@ -109,6 +118,7 @@ class UI:
         with Group(elem_id=id("ui")):
             result = UI(
                 build_unet(id),
+                build_attn(id),
                 build_layerprompt(id),
                 build_debug(runner, id),
             )
@@ -133,6 +143,31 @@ def build_unet(id_: Callable[[str],str]):
         info = build_info(id)
     
     return UNet(
+        tab,
+        enabled,
+        settings,
+        dump,
+        info
+    )
+
+def build_attn(id_: Callable[[str],str]):
+    id = lambda s: id_(f"attention-{s}")
+    
+    with Tab("Attention", elem_id=id("tab")) as tab:
+        enabled = Checkbox(
+            label="Extract attention layers' features",
+            value=False,
+            elem_id=id("checkbox")
+        )
+        
+        settings = OutputSetting.build(id)
+        
+        with Accordion(label="Dump Setting", open=False):
+            dump = DumpSetting.build("Dump feature tensors to files", id)
+        
+        info = build_info(id)
+    
+    return Attn(
         tab,
         enabled,
         settings,
