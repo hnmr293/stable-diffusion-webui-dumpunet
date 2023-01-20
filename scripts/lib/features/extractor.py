@@ -17,7 +17,7 @@ from scripts.lib.utils import *
 class FeatureExtractor:
     
     # image_index -> step -> Features
-    extracted_features: MultiImageFeatures
+    extracted_features: MultiImageFeatures[FeatureInfo]
     
     # steps to process
     steps: list[int]
@@ -126,7 +126,7 @@ class FeatureExtractor:
         self,
         p: StableDiffusionProcessing,
         proc: Processed,
-        extracted_features: MultiImageFeatures,
+        extracted_features: MultiImageFeatures[FeatureInfo],
         color: bool
     ) -> Processed:
         

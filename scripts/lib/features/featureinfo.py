@@ -1,8 +1,10 @@
+from typing import Generic, TypeVar
 from dataclasses import dataclass
 from collections import defaultdict
 
 import torch
 from torch import Tensor
+import numpy as np
 
 from scripts.lib import layerinfo
 from scripts.lib.report import message as E
@@ -14,10 +16,17 @@ class FeatureInfo:
     output_dims: torch.Size
     output: Tensor
 
-class Features:
+#@dataclass
+#class AttnFeatureInfo:
+#    qk: np.ndarray
+#    vqk: np.ndarray
+
+TInfo = TypeVar("TInfo")
+
+class Features(Generic[TInfo]):
     
-    # layer -> FeatureInfo
-    features : dict[str, FeatureInfo]
+    # layer -> UNetFeatureInfo
+    features : dict[str, TInfo]
     
     def __init__(self):
         self.features = dict()
@@ -43,18 +52,18 @@ class Features:
     def layers(self):
         return sorted_keys(self.features)
     
-    def get_by_name(self, layer: str) -> FeatureInfo|None:
+    def get_by_name(self, layer: str) -> TInfo|None:
         if layer in self.features:
             return self.features[layer]
         return None
     
-    def get_by_index(self, layer: int) -> FeatureInfo|None:
+    def get_by_index(self, layer: int) -> TInfo|None:
         name = layerinfo.name(layer)
         if name is None:
             return None
         return self.get_by_name(name)
     
-    def add(self, layer: int|str, info: FeatureInfo):
+    def add(self, layer: int|str, info: TInfo):
         if isinstance(layer, int):
             name = layerinfo.name(layer)
             if name is None:
@@ -62,12 +71,12 @@ class Features:
             layer = name
         self.features[layer] = info
 
-class MultiStepFeatures(defaultdict[int,Features]):
+class MultiStepFeatures(Generic[TInfo], defaultdict[int,Features[TInfo]]):
     
     def __init__(self):
         super().__init__(lambda: Features())
 
-class MultiImageFeatures(defaultdict[int,MultiStepFeatures]):
+class MultiImageFeatures(Generic[TInfo], defaultdict[int,MultiStepFeatures[TInfo]]):
     
     def __init__(self):
         super().__init__(lambda: MultiStepFeatures())

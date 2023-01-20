@@ -13,8 +13,8 @@ from scripts.lib.features.featureinfo import FeatureInfo, Features, MultiImageFe
 from scripts.lib.report import message as E
 
 def feature_diff(
-    features1: MultiImageFeatures,
-    features2: MultiImageFeatures,
+    features1: MultiImageFeatures[FeatureInfo],
+    features2: MultiImageFeatures[FeatureInfo],
     abs: bool = False
 ) -> Generator[tuple[int,int,str,Tensor],None,None]:
     # features1 and features2 must be have same keys...
