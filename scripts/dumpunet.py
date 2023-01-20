@@ -2,11 +2,13 @@ import sys
 import os
 import time
 import contextlib
+from typing import Callable
 
 import modules.scripts as scripts
 from modules.processing import process_images, fix_seed, StableDiffusionProcessing, Processed
 
 from scripts.lib.build_ui import UI
+from scripts.lib.extractor import FeatureExtractorBase
 from scripts.lib.features.extractor import FeatureExtractor
 from scripts.lib.features.process import feature_diff, tensor_to_grid_images, save_tensor
 from scripts.lib.layer_prompt.prompt import LayerPrompt
@@ -17,8 +19,8 @@ class Script(scripts.Script):
     
     def __init__(self) -> None:
         super().__init__()
-        self.batch_num = 0
-        self.steps_on_batch = 0
+        self.on_process: set[Callable] = set()
+        self.on_process_batch: set[Callable] = set()
         self.debug = False
     
     def log(self, msg: str):
@@ -54,12 +56,13 @@ class Script(scripts.Script):
             result.debug.log,
         ]
     
-    def process(self, p, *args):
-        self.batch_num = 0
+    def process(self, p, *args, **kwargs):
+        for fn in self.on_process:
+            fn(p, *args, **kwargs)
     
     def process_batch(self, p, *args, **kwargs):
-        self.steps_on_batch = 0
-        self.batch_num += 1
+        for fn in self.on_process_batch:
+            fn(p, *args, **kwargs)
     
     def run(self,
             p: StableDiffusionProcessing,
@@ -138,12 +141,12 @@ class Script(scripts.Script):
             
             # layer prompt disabled
             lp0 = LayerPrompt(self, layerprompt_enabled, remove_layer_prompts=True)
-            proc1 = exec(p1, [lp0, ex, exlp])
+            proc1 = exec(p1, lp0, [ex, exlp])
             features1 = ex.extracted_features
             diff1 = exlp.extracted_features
             proc1 = ex.add_images(p1, proc1, features1, color)
             # layer prompt enabled
-            proc2 = exec(p2, [lp, ex, exlp])
+            proc2 = exec(p2, lp, [ex, exlp])
             features2 = ex.extracted_features
             diff2 = exlp.extracted_features
             proc2 = ex.add_images(p2, proc2, features2, color)
@@ -171,7 +174,7 @@ class Script(scripts.Script):
                     save_tensor(tensor, diff_path, basename)
             
         else:
-            proc = exec(p, [lp, ex])
+            proc = exec(p, lp, [ex])
             features = ex.extracted_features
             if unet_features_enabled:
                 proc = ex.add_images(p, proc, features, color)
@@ -186,13 +189,17 @@ class Script(scripts.Script):
 
 def exec(
     p: StableDiffusionProcessing,
-    extractors: list
+    lp: LayerPrompt,
+    extractors: list[FeatureExtractorBase]
 ):
     proc = None
-    with contextlib.ExitStack() as ctx:
-        for ex in extractors:
-            ctx.enter_context(ex)
-            ex.setup(p)
-        proc = process_images(p)
+    with lp:
+        lp.setup(p)
+        with contextlib.ExitStack() as ctx:
+            for ex in extractors:
+                ctx.enter_context(ex)
+                ex.setup(p)
+            proc = process_images(p)
+    
     assert proc is not None
     return proc

@@ -1,52 +1,35 @@
-import os
+import os, sys
 import time
+from typing import TYPE_CHECKING
 
 from torch import nn, Tensor
-from torch.utils.hooks import RemovableHandle
 
 from modules.processing import Processed, StableDiffusionProcessing
 from modules import shared
 
 from scripts.lib import layerinfo
+from scripts.lib.extractor import FeatureExtractorBase
 from scripts.lib.features.featureinfo import FeatureInfo, MultiImageFeatures
 from scripts.lib.features.process import feature_to_grid_images, save_features
-from scripts.lib.ui import retrieve_layers, retrieve_steps
 from scripts.lib.report import message as E
 from scripts.lib.utils import *
 
-class FeatureExtractor:
-    
-    # image_index -> step -> Features
-    extracted_features: MultiImageFeatures[FeatureInfo]
-    
-    # steps to process
-    steps: list[int]
-    
-    # layers to process
-    layers: list[str]
+if TYPE_CHECKING:
+    from scripts.dumpunet import Script
+
+class FeatureExtractor(FeatureExtractorBase[FeatureInfo]):
     
     def __init__(
         self,
-        runner,
+        runner: "Script",
         enabled: bool,
         total_steps: int,
         layer_input: str,
         step_input: str,
         path: str|None,
     ):
-        self._runner = runner
-        self._enabled = enabled
-        self._handles: list[RemovableHandle] = []
+        super().__init__(runner, enabled, total_steps, layer_input, step_input)
         
-        self.extracted_features = MultiImageFeatures()
-        self.steps = []
-        self.layers = []
-        self.path = None
-        
-        if not self._enabled:
-            return
-        
-        assert layer_input is not None and layer_input != "", E("<Layers> must not be empty.")
         if path is not None:
             assert path != "", E("<Output path> must not be empty.")
             # mkdir -p path
@@ -55,29 +38,9 @@ class FeatureExtractor:
             else:
                 os.makedirs(path, exist_ok=True)
         
-        self.layers = retrieve_layers(layer_input)
-        self.steps = (
-            retrieve_steps(step_input) 
-            or list(range(1, total_steps+1))
-        )
         self.path = path
         
-    def __enter__(self):
-        self.extracted_features = MultiImageFeatures()
-    
-    def __exit__(self, exc_type, exc_value, traceback):
-        for handle in self._handles:
-            handle.remove()
-        self._handles.clear()
-    
-    def setup(
-        self,
-        p: StableDiffusionProcessing,
-    ):
-        if not self._enabled:
-            return
-        
-        unet = p.sd_model.model.diffusion_model # type: ignore
+    def hook_unet(self, p: StableDiffusionProcessing, unet: nn.Module):
         
         #time_embed :  nn.modules.container.Sequential
         #input_blocks  : nn.modules.container.ModuleList
@@ -91,22 +54,19 @@ class FeatureExtractor:
         #out_ = unet.out
         #summary(unet, (4, 512, 512))
         
-        def start_step(module, inputs, outputs):
-            self._runner.steps_on_batch += 1
-        
         def create_hook(layername: str):
             
             def forward_hook(module, inputs, outputs):
-                # print(f"{self._runner.steps_on_batch} {layername} {inputs[0].size()} {outputs.size()}")
-                
-                if self._runner.steps_on_batch in self.steps:
+                if self.steps_on_batch in self.steps:
+                    self.log(f"{self.steps_on_batch} {layername} {inputs[0].size()} {outputs.size()}")
+                    
                     images_per_batch = outputs.size()[0] // 2 # two same outputs per sample???
                     
                     for image_index, output in enumerate(
                         outputs.detach().clone()[:images_per_batch],
-                        (self._runner.batch_num-1) * images_per_batch
+                        (self.batch_num-1) * images_per_batch
                     ):
-                        features = self.extracted_features[image_index][self._runner.steps_on_batch]
+                        features = self.extracted_features[image_index][self.steps_on_batch]
                         features.add(
                             layername,
                             FeatureInfo(
@@ -117,20 +77,20 @@ class FeatureExtractor:
                         )
             return forward_hook
         
-        self._handles.append(unet.time_embed.register_forward_hook(start_step))
         for layer in self.layers:
+            self.log(f"U-Net: hooking {layer}...")
             target = get_unet_layer(unet, layer)
-            self._handles.append(target.register_forward_hook(create_hook(layer)))
+            self.hook_layer(target, create_hook(layer))
         
     def add_images(
         self,
         p: StableDiffusionProcessing,
         proc: Processed,
-        extracted_features: MultiImageFeatures[FeatureInfo],
+        extracted_features: MultiImageFeatures,
         color: bool
     ) -> Processed:
         
-        if not self._enabled:
+        if not self.enabled:
             return proc
         
         if shared.state.interrupted:

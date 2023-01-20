@@ -3,7 +3,8 @@
 
 import sys
 from collections import defaultdict
-from typing import Callable, Any
+from io import StringIO
+from typing import Callable, Any, TYPE_CHECKING
 
 import torch
 from torch import Tensor
@@ -15,11 +16,15 @@ from modules.prompt_parser import get_learned_conditioning as glc
 from modules.prompt_parser import ScheduledPromptConditioning
 glc : Callable[[Any,list[str],int],list[list[ScheduledPromptConditioning]]]
 
+from scripts.lib.extractor import ExtractorBase
 from scripts.lib import layerinfo
 from scripts.lib.layer_prompt.generator import LayerPromptGenerator, LayerPromptEraseGenerator, LayerPrompts
 from scripts.lib.layer_prompt.parser import BadPromptError
 
-class LayerPrompt:
+if TYPE_CHECKING:
+    from scripts.dumpunet import Script
+
+class LayerPrompt(ExtractorBase):
     
     # original forward function
     o_fw: Callable|None
@@ -29,26 +34,25 @@ class LayerPrompt:
     
     model: Any
     
+    remove_layer_prompts: bool
+    
     last_batch_num: int
     
-    def __init__(self, runner, enabled: bool, remove_layer_prompts: bool = False):
-        self._runner = runner
-        self._enabled = enabled
+    def __init__(self, runner: "Script", enabled: bool, remove_layer_prompts: bool = False):
+        super().__init__(runner, enabled)
+        
         self.o_fw = self.fw = self.model = None
         self.remove_layer_prompts = remove_layer_prompts
         self.last_batch_num = -1
 
-    def __enter__(self):
-        pass
-    
-    def __exit__(self, exc_type, exc_value, traceback):
+    def dispose(self):
         if self.model is not None and self.o_fw is not None:
             self.model.diffusion_model.forward = self.o_fw
         self.o_fw = self.fw = self.model = None
         self.last_batch_num = -1
     
     def setup(self, p: StableDiffusionProcessing):
-        if not self._enabled:
+        if not self.enabled:
             return
         
         old = p.sd_model.model.diffusion_model.forward # type: ignore
@@ -62,6 +66,8 @@ class LayerPrompt:
         # replace U-Net forward
         self.model = p.sd_model.model                # type: ignore
         self.model.diffusion_model.forward = self.fw # type: ignore
+        
+        super().setup(p)
     
     def _create_blocks_cond(
         self,
@@ -89,7 +95,7 @@ class LayerPrompt:
             uc1 = [ glc(p.sd_model, list(image_uc.values()), p.steps) for image_uc in uc_list ]
             c1  = [ glc(p.sd_model, list(image_c.values()), p.steps)  for image_c  in c_list  ]
         
-        steps = self._runner.steps_on_batch
+        steps = self.steps_on_batch
         def get_cond(conds: list[ScheduledPromptConditioning]):
             assert len(conds) != 0
             for cc in conds:
@@ -155,7 +161,7 @@ class LayerPrompt:
                 assert y.shape[0] == x.shape[0]
                 emb = emb + _self.label_emb(y)
 
-            n = self._runner.batch_num - 1
+            n = self.batch_num - 1
             assert 0 <= n
             prompts = p.all_prompts[n * p.batch_size:(n + 1) * p.batch_size]
             negative_prompts = p.all_negative_prompts[n * p.batch_size:(n + 1) * p.batch_size]
@@ -166,8 +172,7 @@ class LayerPrompt:
                 self._create_blocks_cond(p, prompts, negative_prompts)
             
             last_n, self.last_batch_num = self.last_batch_num, n
-            if last_n != n:
-                self.dump_prompts(n, c_list, uc_list)
+            self.log(self.dump_prompts(n, c_list, uc_list))
             
             cond_index = 0
             h = x.type(_self.dtype)
@@ -189,10 +194,11 @@ class LayerPrompt:
         
         return new_forward
     
-    def dump_prompts(self, n: int, c_list, uc_list):
-        def pp(s): self._runner.log(s)
+    def dump_prompts(self, n: int, c_list, uc_list) -> str:
+        io = StringIO()
+        def pp(s): print(s, file=io)
         pp("=" * 80)
-        pp(f"Prompts (batch={n}, step={self._runner.steps_on_batch}")
+        pp(f"Prompts (batch={n}, step={self.steps_on_batch}")
         pp("-" * 80)
         for layername in layerinfo.Names:
             pp(f"{layername:<5} : {[getattr(c, layername) for c in c_list]}")
@@ -202,3 +208,4 @@ class LayerPrompt:
         for layername in layerinfo.Names:
             pp(f"{layername:<5} : {[getattr(uc, layername) for uc in uc_list]}")
         pp("=" * 80)
+        return io.getvalue()
