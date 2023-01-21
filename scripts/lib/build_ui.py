@@ -40,12 +40,12 @@ class OutputSetting:
                 elem_id=id("steps")
             )
         
-        with Accordion("Colorization"):
+        with Accordion("Colorization", open=False):
             show = {"visible": True,  "__type__": "update"}
             hide = {"visible": False, "__type__": "update"}
             
             desc = HTML(elem_id=id("colorization-desc"))
-            colorize = Radio(choices=["White/Black", "Red/Blue", "Custom"], value="Custom", label="Colorize method")
+            colorize = Radio(choices=["White/Black", "Red/Blue", "Custom"], value="Custom", label="Colorize method", elem_id=id("colorization-method"))
             trans = Radio(choices=["Auto [0,1]", "Auto [-1,1]", "Linear", "Sigmoid"], value="Auto [0,1]", label="Value transform", elem_id=id("colorization-trans"))
             
             with Row(visible=False) as linear_option:

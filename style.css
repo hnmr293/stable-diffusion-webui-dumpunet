@@ -53,6 +53,22 @@
     border-color: rgb(128 128 128 / var(--tw-bg-opacity));
 }
 
+#dumpunet-txt2img-features-colorization-method .dumpunet-tooltip,
+#dumpunet-txt2img-layerprompt-diff-colorization-method .dumpunet-tooltip,
+#dumpunet-txt2img-attention-colorization-method .dumpunet-tooltip,
+#dumpunet-img2img-features-colorization-method .dumpunet-tooltip,
+#dumpunet-img2img-layerprompt-diff-colorization-method .dumpunet-tooltip,
+#dumpunet-img2img-attention-colorization-method .dumpunet-tooltip,
+#dumpunet-txt2img-features-colorization-trans .dumpunet-tooltip,
+#dumpunet-txt2img-layerprompt-diff-colorization-trans .dumpunet-tooltip,
+#dumpunet-txt2img-attention-colorization-trans .dumpunet-tooltip,
+#dumpunet-img2img-features-colorization-trans .dumpunet-tooltip,
+#dumpunet-img2img-layerprompt-diff-colorization-trans .dumpunet-tooltip,
+#dumpunet-img2img-attention-colorization-trans .dumpunet-tooltip {
+    right: unset;
+    top: 4em;
+}
+
 .dumpunet-description {
     /* font-family: monospace; */
     font-size: small;
