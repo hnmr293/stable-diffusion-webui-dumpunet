@@ -1,3 +1,4 @@
+import sys
 import math
 from typing import TYPE_CHECKING
 
@@ -16,6 +17,7 @@ from scripts.lib.attention.featureinfo import AttnFeatureInfo
 from scripts.lib import layerinfo, tutils
 from scripts.lib.colorizer import Colorizer
 from scripts.lib.utils import *
+from scripts.lib.report import message as E
 
 if TYPE_CHECKING:
     from scripts.dumpunet import Script
@@ -72,11 +74,14 @@ class AttentionExtractor(FeatureExtractorBase):
             
             return forward
         
+        active_steps: list[str] = []
         for layer in self.layers:
-            self.log(f"Attention: hooking {layer}...")
             for n, d, block, attn1, attn2 in get_unet_attn_layers(unet, layer):
+                self.log(f"Attention: hooking {layer}...")
+                active_steps.append(layer)
                 self.hook_forward(attn1, create_hook(layer, block, n, d, 1))
                 self.hook_forward(attn2, create_hook(layer, block, n, d, 2))
+        self.layers = sorted(set(active_steps), key=active_steps.index)
         
         return super().hook_unet(p, unet)
     
@@ -122,6 +127,22 @@ class AttentionExtractor(FeatureExtractorBase):
         del q_in, k_in, v_in, q, k, v, sim, o_in, o
         
         return qk, vqk
+    
+    def add_images(
+        self,
+        p: StableDiffusionProcessing,
+        builder,
+        extracted_features: MultiImageFeatures[AttnFeatureInfo],
+        color: Colorizer
+    ):
+        if not self.enabled: return
+        if shared.state.interrupted: return
+        if len(extracted_features) == 0:
+            print("\033[33m", file=sys.stderr, end="", flush=False)
+            print(E("Attention: no images are extracted"), file=sys.stderr, end="", flush=False)
+            print("\033[0m", file=sys.stderr)
+            return
+        return super().add_images(p, builder, extracted_features, color)
     
     def feature_to_grid_images(self, feature: AttnFeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: Colorizer):
         w, h, ch = get_shape(layer, width, height)
