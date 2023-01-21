@@ -9,13 +9,14 @@ from modules import shared
 
 from scripts.lib import layerinfo
 from scripts.lib.report import message as E
+from scripts.lib.colorizer import Colorizer
 
 def tensor_to_grid_images(
     tensor: Tensor,
     layer: str,
     width: int,
     height: int,
-    color: bool
+    color: Colorizer
 ):
     grid_x, grid_y = get_grid_num(layer, width, height)
     canvases = tensor_to_image(tensor, grid_x, grid_y, color)
@@ -25,7 +26,7 @@ def tensor_to_image(
             tensor: Tensor,
             grid_x: int,
             grid_y: int,
-            color: bool,
+            color: Colorizer,
 ):
     # Regardless of wheather --opt-channelslast is enabled or not, 
     # feature.size() seems to return (batch, ch, h, w).
@@ -48,12 +49,11 @@ def tensor_to_image(
             yield cur
     
     canvases: list[Image.Image] = []
-    color_format = "RGB" if color else "L"
     
     for chs in each_slice(range(max_ch), grid_x * grid_y):
         chs = list(chs)
         
-        canvas = Image.new(color_format, (width, height), color=0)
+        canvas = Image.new(color.format, (width, height), color=0)
         for iy in range(grid_y):
             if len(chs) == 0:
                 break
@@ -72,7 +72,7 @@ def tensor_to_image(
                 x = (iw+1) * ix
                 y = (ih+1) * iy
                 image = _tensor_to_image(array, color)
-                canvas.paste(Image.fromarray(image, color_format), (x, y))
+                canvas.paste(Image.fromarray(image, color.format), (x, y))
         
         canvases.append(canvas)
     return canvases
@@ -91,23 +91,25 @@ def save_tensor(
             io.write(bytearray(array))
     
 
-def _tensor_to_image(array: np.ndarray, color: bool):
+def _tensor_to_image(array: np.ndarray, color: Colorizer):
     # array := (-∞, ∞)
     
-    if color:
-        def colorize(v: float):
-            # v = -1 .. 1 を
-            # v < 0 のとき青 (0, 0, 1)
-            # v > 0 のとき赤 (1 ,0, 0)
-            # にする
-            rgb = (v if v > 0.0 else 0.0, 0.0, -v if v < 0.0 else 0.0)
-            return rgb
-        colorize2 = np.vectorize(colorize, otypes=[np.float32, np.float32, np.float32])
-        rgb = colorize2(np.clip(array, -1.0, 1.0))
-        return np.clip((np.dstack(rgb) * 256), 0, 255).astype(np.uint8)
-            
-    else:
-        return np.clip(np.abs(array) * 256, 0, 255).astype(np.uint8)
+    return color(array)
+    #
+    #if color:
+    #    def colorize(v: float):
+    #        # v = -1 .. 1 を
+    #        # v < 0 のとき青 (0, 0, 1)
+    #        # v > 0 のとき赤 (1 ,0, 0)
+    #        # にする
+    #        rgb = (v if v > 0.0 else 0.0, 0.0, -v if v < 0.0 else 0.0)
+    #        return rgb
+    #    colorize2 = np.vectorize(colorize, otypes=[np.float32, np.float32, np.float32])
+    #    rgb = colorize2(np.clip(array, -1.0, 1.0))
+    #    return np.clip((np.dstack(rgb) * 256), 0, 255).astype(np.uint8)
+    #        
+    #else:
+    #    return np.clip(np.abs(array) * 256, 0, 255).astype(np.uint8)
 
 def get_grid_num(layer: str, width: int, height: int):
     assert layer is not None and layer != "", E("<Layers> must not be empty.")

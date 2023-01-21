@@ -11,6 +11,7 @@ from scripts.lib.ui import retrieve_layers, retrieve_steps
 from scripts.lib.putils import ProcessedBuilder
 from scripts.lib.report import message as E
 from scripts.lib.utils import sorted_values, sorted_items
+from scripts.lib.colorizer import Colorizer
 
 if TYPE_CHECKING:
     from scripts.dumpunet import Script
@@ -76,7 +77,7 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
         p: StableDiffusionProcessing,
         builder: ProcessedBuilder,
         extracted_features: MultiImageFeatures[TInfo],
-        color: bool
+        color: Colorizer
     ):
         
         if not self.enabled:
@@ -109,7 +110,7 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
                     
                     shared.total_tqdm.update()
         
-    def feature_to_grid_images(self, feature: TInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: bool):
+    def feature_to_grid_images(self, feature: TInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: Colorizer):
         raise NotImplementedError(f"{self.__class__.__name__}.feature_to_grid_images")
     
     def save_features(self, feature: TInfo, layer: str, img_idx: int, step: int, width: int, height: int, path: str, basename: str):

@@ -3,6 +3,7 @@ from typing import Generator
 from torch import Tensor
 
 from scripts.lib import tutils
+from scripts.lib.colorizer import Colorizer
 from scripts.lib.features.featureinfo import FeatureInfo, MultiImageFeatures
 
 def feature_diff(
@@ -46,7 +47,7 @@ def feature_to_grid_images(
     layer: str,
     width: int,
     height: int,
-    color: bool
+    color: Colorizer
 ):
     tensor = feature
     if isinstance(feature, FeatureInfo):

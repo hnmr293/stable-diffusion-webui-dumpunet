@@ -13,6 +13,7 @@ from scripts.lib.features.extractor import FeatureExtractor
 from scripts.lib.features.utils import feature_diff, feature_to_grid_images
 from scripts.lib.tutils import save_tensor
 from scripts.lib.putils import ProcessedBuilder
+from scripts.lib.colorizer import Colorizer
 from scripts.lib.layer_prompt.prompt import LayerPrompt
 from scripts.lib.attention.extractor import AttentionExtractor
 from scripts.lib.report import message as E
@@ -44,14 +45,24 @@ class Script(scripts.Script):
             result.unet.enabled,
             result.unet.settings.layers,
             result.unet.settings.steps,
-            result.unet.settings.color,
+            result.unet.settings.colorize, result.unet.settings.colorspace,
+            result.unet.settings.R, result.unet.settings.G, result.unet.settings.B,
+            result.unet.settings.H, result.unet.settings.S, result.unet.settings.L,
+            result.unet.settings.trans,
+            result.unet.settings.linear_min, result.unet.settings.linear_max,
+            result.unet.settings.sigmoid_gain, result.unet.settings.sigmoid_offset,
             result.unet.dump.enabled,
             result.unet.dump.path,
             
             result.attn.enabled,
             result.attn.settings.layers,
             result.attn.settings.steps,
-            result.attn.settings.color,
+            result.attn.settings.colorize, result.attn.settings.colorspace,
+            result.attn.settings.R, result.attn.settings.G, result.attn.settings.B,
+            result.attn.settings.H, result.attn.settings.S, result.attn.settings.L,
+            result.attn.settings.trans,
+            result.attn.settings.linear_min, result.attn.settings.linear_max,
+            result.attn.settings.sigmoid_gain, result.attn.settings.sigmoid_offset,
             result.attn.dump.enabled,
             result.attn.dump.path,
             
@@ -59,7 +70,12 @@ class Script(scripts.Script):
             result.lp.diff_enabled,
             result.lp.diff_settings.layers,
             result.lp.diff_settings.steps,
-            result.lp.diff_settings.color,
+            result.lp.diff_settings.colorize, result.lp.diff_settings.colorspace,
+            result.lp.diff_settings.R, result.lp.diff_settings.G, result.lp.diff_settings.B,
+            result.lp.diff_settings.H, result.lp.diff_settings.S, result.lp.diff_settings.L,
+            result.lp.diff_settings.trans,
+            result.lp.diff_settings.linear_min, result.lp.diff_settings.linear_max,
+            result.lp.diff_settings.sigmoid_gain, result.lp.diff_settings.sigmoid_offset,
             result.lp.diff_dump.enabled,
             result.lp.diff_dump.path,
             
@@ -100,14 +116,20 @@ class Script(scripts.Script):
             unet_features_enabled: bool,
             layer_input: str,
             step_input: str,
-            color: bool,
+            color_: str, colorspace: str,
+            fr: str, fg: str, fb: str,
+            fh: str, fs: str, fl: str,
+            ftrans: str, flmin: float, flmax: float, fsig_gain: float, fsig_offset: float,
             path_on: bool,
             path: str,
             
             attn_enabled: bool,
             attn_layers: str,
             attn_steps: str,
-            attn_color: bool,
+            attn_color_: str, attn_cs: str,
+            ar: str, ag: str, ab: str,
+            ah: str, as_: str, al: str,
+            atrans: str, almin: float, almax: float, asig_gain: float, asig_offset: float,
             attn_path_on: bool,
             attn_path: str,
             
@@ -115,7 +137,10 @@ class Script(scripts.Script):
             layerprompt_diff_enabled: bool,
             lp_diff_layers: str,
             lp_diff_steps: str,
-            lp_diff_color: bool,
+            lp_diff_color_: str, lcs: str,
+            lr: str, lg: str, lb: str,
+            lh: str, ls: str, ll: str,
+            ltrans: str, llmin: float, llmax: float, lsig_gain: float, lsig_offset: float,
             diff_path_on: bool,
             diff_path: str,
             
@@ -126,6 +151,11 @@ class Script(scripts.Script):
             return process_images(p)
         
         self.debug = debug
+        
+        color =         Colorizer(color_, colorspace,   (fr, fg, fb), (fh, fs, fl),  ftrans, (flmin, flmax), (fsig_gain, fsig_offset))
+        attn_color =    Colorizer(attn_color_, attn_cs, (ar, ag, ab), (ah, as_, al), atrans, (almin, almax), (asig_gain, asig_offset))
+        lp_diff_color = Colorizer(lp_diff_color_, lcs,  (lr, lg, lb), (lh, ls, ll) , ltrans, (llmin, llmax), (lsig_gain, lsig_offset))
+        #color=attn_color=lp_diff_color=False
         
         ex = FeatureExtractor(
             self,

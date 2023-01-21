@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from functools import partial
 import json
 
-from gradio import Blocks, Group, Tab, Row, Column, Textbox, Checkbox, HTML, Accordion
+from gradio import Blocks, Group, Tab, Row, Column, Textbox, Checkbox, Radio, Slider, Number, HTML, Accordion
 
 from scripts.lib import layerinfo
 
@@ -11,7 +11,19 @@ from scripts.lib import layerinfo
 class OutputSetting:
     layers: Textbox
     steps: Textbox
-    color: Checkbox
+    colorize: Radio
+    colorspace: Radio
+    R: Textbox
+    G: Textbox
+    B: Textbox
+    H: Textbox
+    S: Textbox
+    L: Textbox
+    trans: Radio
+    linear_min: Slider
+    linear_max: Slider
+    sigmoid_gain: Slider
+    sigmoid_offset: Slider
     
     @staticmethod
     def build(id: Callable[[str],str]):
@@ -28,17 +40,63 @@ class OutputSetting:
                 elem_id=id("steps")
             )
         
-        color = Checkbox(
-            False,
-            label="Use red/blue color map (red=POSITIVE, black=ZERO, blue=NEGATIVE)",
-            elem_id=id("color")
-        )
-        color.style(container=False)
-        
+        with Accordion("Colorization"):
+            show = {"visible": True,  "__type__": "update"}
+            hide = {"visible": False, "__type__": "update"}
+            
+            colorize = Radio(choices=["White/Black", "Red/Blue", "Custom"], value="White/Black", label="Colorize method")
+            trans = Radio(choices=["Linear", "Sigmoid"], value="Sigmoid", label="Value transform")
+            
+            with Row(visible=False) as linear_option:
+                clamp_min = Slider(minimum=-10, maximum=-0.1, value=-1, step=0.1, label="Clamp min.", interactive=True)
+                clamp_max = Slider(minimum=0.1, maximum=10, value=1, step=0.1, label="Clamp max.", interactive=True)
+            
+            with Row(visible=True) as sigmoid_option:
+                sigmoid_gain = Slider(minimum=0.1, maximum=2, value=1.0, step=0.1, label="gain", interactive=True)
+                sigmoid_offset = Slider(minimum=-10, maximum=10, value=0.0, step=0.1, label="offset X", interactive=True)
+            map(lambda x: x.style(container=False), [clamp_min, clamp_max, sigmoid_gain, sigmoid_offset])
+            
+            with Group(visible=False) as colorize_custom_option:
+                colorspace = Radio(choices=["RGB", "HSL"], value="RGB", label="Color space")
+                with Row(visible=True) as RGB:
+                    r = Textbox(value="abs(v)", label="R", interactive=True)
+                    g = Textbox(value="abs(v)", label="G", interactive=True)
+                    b = Textbox(value="abs(v)", label="B", interactive=True)
+                with Row(visible=False) as HSL:
+                    h = Textbox(value="(2+v)/3", label="H", interactive=True)
+                    s = Textbox(value="1.0", label="S", interactive=True)
+                    l = Textbox(value="0.5", label="L", interactive=True)
+                map(lambda x: x.style(container=False), [r,g,b,h,s,l])
+            
+            def color_change(x):
+                if x == "Custom":
+                    return show
+                else:
+                    return hide
+            def trans_change(x):
+                if x == "Linear":
+                    return show, hide
+                else:
+                    return hide, show
+            def colorspace_change(x):
+                if x == "RGB":
+                    return show, hide
+                else:
+                    return hide, show
+            colorize.change(fn=color_change, inputs=[colorize], outputs=[colorize_custom_option], show_progress=False) # type: ignore
+            trans.change(fn=trans_change, inputs=[trans], outputs=[linear_option, sigmoid_option], show_progress=False) # type: ignore
+            colorspace.change(fn=colorspace_change, inputs=[colorspace], outputs=[RGB, HSL], show_progress=False) # type: ignore
+            
         return OutputSetting(
             layers,
             steps,
-            color
+            colorize,
+            colorspace,
+            r, g, b,
+            h, s, l,
+            trans,
+            clamp_min, clamp_max,
+            sigmoid_gain, sigmoid_offset
         )
 
 @dataclass
