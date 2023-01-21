@@ -14,6 +14,7 @@ from scripts.lib.features.featureinfo import MultiImageFeatures
 from scripts.lib.features.extractor import get_unet_layer
 from scripts.lib.attention.featureinfo import AttnFeatureInfo
 from scripts.lib import layerinfo, tutils
+from scripts.lib.colorizer import Colorizer
 from scripts.lib.utils import *
 
 if TYPE_CHECKING:
@@ -122,8 +123,7 @@ class AttentionExtractor(FeatureExtractorBase):
         
         return qk, vqk
     
-    def feature_to_grid_images(self, feature: AttnFeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: bool):
-        #return feature_to_grid_images(feature, layer, width, height, color)
+    def feature_to_grid_images(self, feature: AttnFeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: Colorizer):
         w, h, ch = get_shape(layer, width, height)
         # qk
         qk = feature.qk

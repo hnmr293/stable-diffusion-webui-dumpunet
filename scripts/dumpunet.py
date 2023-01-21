@@ -155,7 +155,6 @@ class Script(scripts.Script):
         color =         Colorizer(color_, colorspace,   (fr, fg, fb), (fh, fs, fl),  ftrans, (flmin, flmax), (fsig_gain, fsig_offset))
         attn_color =    Colorizer(attn_color_, attn_cs, (ar, ag, ab), (ah, as_, al), atrans, (almin, almax), (asig_gain, asig_offset))
         lp_diff_color = Colorizer(lp_diff_color_, lcs,  (lr, lg, lb), (lh, ls, ll) , ltrans, (llmin, llmax), (lsig_gain, lsig_offset))
-        #color=attn_color=lp_diff_color=False
         
         ex = FeatureExtractor(
             self,
