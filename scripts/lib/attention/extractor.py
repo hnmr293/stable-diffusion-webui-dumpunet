@@ -90,10 +90,15 @@ class AttentionExtractor(FeatureExtractorBase):
         # k_in, v_in : embedding vector kv (cross-attention) ([2, 77, 320]) or unet features kv (self-attention) ([2, 4096, 320])
         # q,k,v : head-separated q_in, k_in and v_in
         
-        ctx_k, ctx_v = hypernetwork.apply_hypernetwork(
-            shared.loaded_hypernetwork,
-            context if context is not None else x
-        )
+        if getattr(hypernetwork, "apply_hypernetworks"):
+            ctx_k, ctx_v = hypernetwork.apply_hypernetworks(shared.loaded_hypernetworks, context)
+        elif getattr(hypernetwork, "apply_hypernetwork"):
+            ctx_k, ctx_v = hypernetwork.apply_hypernetwork(
+                shared.loaded_hypernetwork,
+                context if context is not None else x
+            )
+        else:
+            assert False, "not supported version"
         
         q_in = module.to_q(x)
         k_in = module.to_k(ctx_k)
