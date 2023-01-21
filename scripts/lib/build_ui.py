@@ -44,20 +44,21 @@ class OutputSetting:
             show = {"visible": True,  "__type__": "update"}
             hide = {"visible": False, "__type__": "update"}
             
+            desc = HTML(elem_id=id("colorization-desc"))
             colorize = Radio(choices=["White/Black", "Red/Blue", "Custom"], value="Custom", label="Colorize method")
-            trans = Radio(choices=["Auto [0,1]", "Auto [-1,1]", "Linear", "Sigmoid"], value="Auto [0,1]", label="Value transform")
+            trans = Radio(choices=["Auto [0,1]", "Auto [-1,1]", "Linear", "Sigmoid"], value="Auto [0,1]", label="Value transform", elem_id=id("colorization-trans"))
             
             with Row(visible=False) as linear_option:
                 clamp_min = Slider(minimum=-10, maximum=-0.1, value=-1, step=0.1, label="Clamp min.", interactive=True)
                 clamp_max = Slider(minimum=0.1, maximum=10, value=1, step=0.1, label="Clamp max.", interactive=True)
             
             with Row(visible=False) as sigmoid_option:
-                sigmoid_gain = Slider(minimum=0.1, maximum=2, value=1.0, step=0.1, label="gain", interactive=True)
+                sigmoid_gain = Slider(minimum=0.1, maximum=10, value=1.0, step=0.1, label="gain", interactive=True)
                 sigmoid_offset = Slider(minimum=-10, maximum=10, value=0.0, step=0.1, label="offset X", interactive=True)
             map(lambda x: x.style(container=False), [clamp_min, clamp_max, sigmoid_gain, sigmoid_offset])
             
             with Group(visible=True) as colorize_custom_option:
-                colorspace = Radio(choices=["RGB", "HSL"], value="HSL", label="Color space")
+                colorspace = Radio(choices=["RGB", "HSL"], value="HSL", label="Color space", elem_id=id("colorization-custom"))
                 with Row(visible=False) as RGB:
                     r = Textbox(value="abs(v)", label="R", interactive=True)
                     g = Textbox(value="abs(v)", label="G", interactive=True)
