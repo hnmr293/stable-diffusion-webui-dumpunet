@@ -25,7 +25,7 @@ def create_convert_linear_abs(min_: float, max_: float):
     #@np.vectorize
     def fn(array: npt.NDArray[np.float32]):
         vs = (np.abs(np.clip(array, min_, max_)) - X) / (Y - X)
-        assert np.all(((0.0 <= vs) & (vs <= 1.0)) | np.isnan(vs))
+        #assert np.all(((0.0 <= vs) & (vs <= 1.0)) | np.isnan(vs))
         return vs
     return fn
 
@@ -34,16 +34,30 @@ def create_convert_linear(min: float, max: float):
     #@np.vectorize
     def fn(array: npt.NDArray[np.float32]):
         vs = ((np.clip(array, min, max) - min) / (max - min) - 0.5) * 2.0
-        assert np.all(((-1.0 <= vs) & (vs <= 1.0)) | np.isnan(vs))
+        #assert np.all(((-1.0 <= vs) & (vs <= 1.0)) | np.isnan(vs))
         return vs
     return fn
+
+def convert_linear_auto01(array: npt.NDArray[np.float32]):
+    min_, max_ = np.min(array), np.max(array)
+    if np.isnan(min_) or np.isnan(max_) or min_ == max_:
+        return array
+    else:
+        return (array - min_) / (max_ - min_)
+
+def convert_linear_auto11(array: npt.NDArray[np.float32]):
+    min_, max_ = np.min(array), np.max(array)
+    if np.isnan(min_) or np.isnan(max_) or min_ == max_:
+        return array
+    else:
+        return ((array - min_) / (max_ - min_) - 0.5) * 2.0
 
 def create_convert_sigmoid_abs(gain: float, offset: float):
     #@np.vectorize
     def fn(array: npt.NDArray[np.float32]):
         vs = 1.0 / (1.0 + np.exp(-gain * (array+offset)))
         vs = np.abs(vs - 0.5) * 2.0
-        assert np.all(((0.0 <= vs) & (vs <= 1.0)) | np.isnan(vs))
+        #assert np.all(((0.0 <= vs) & (vs <= 1.0)) | np.isnan(vs))
         return vs
     return fn
 
@@ -52,7 +66,7 @@ def create_convert_sigmoid(gain: float, offset: float):
     def fn(array: npt.NDArray[np.float32]):
         vs = 1.0 / (1.0 + np.exp(-gain * (array+offset)))
         vs = (vs - 0.5) * 2.0
-        assert np.all(((-1.0 <= vs) & (vs <= 1.0)) | np.isnan(vs))
+        #assert np.all(((-1.0 <= vs) & (vs <= 1.0)) | np.isnan(vs))
         return vs
     return fn
 
@@ -97,8 +111,12 @@ class Colorizer:
                 self.format = "RGB"
             colorize = create_colorizer(fv)
         
-        assert trans in ["Linear", "Sigmoid"]
-        if trans == "Linear":
+        assert trans in ["Auto [0,1]", "Auto [-1,1]", "Linear", "Sigmoid"]
+        if trans == "Auto [0,1]":
+            convert = convert_linear_auto01
+        elif trans == "Auto [-1,1]":
+            convert = convert_linear_auto11
+        elif trans == "Linear":
             if value1 == "White/Black":
                 convert = create_convert_linear_abs(*linear_minmax)
             else:

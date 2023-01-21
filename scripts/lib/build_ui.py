@@ -45,13 +45,13 @@ class OutputSetting:
             hide = {"visible": False, "__type__": "update"}
             
             colorize = Radio(choices=["White/Black", "Red/Blue", "Custom"], value="Custom", label="Colorize method")
-            trans = Radio(choices=["Linear", "Sigmoid"], value="Sigmoid", label="Value transform")
+            trans = Radio(choices=["Auto [0,1]", "Auto [-1,1]", "Linear", "Sigmoid"], value="Auto [0,1]", label="Value transform")
             
             with Row(visible=False) as linear_option:
                 clamp_min = Slider(minimum=-10, maximum=-0.1, value=-1, step=0.1, label="Clamp min.", interactive=True)
                 clamp_max = Slider(minimum=0.1, maximum=10, value=1, step=0.1, label="Clamp max.", interactive=True)
             
-            with Row(visible=True) as sigmoid_option:
+            with Row(visible=False) as sigmoid_option:
                 sigmoid_gain = Slider(minimum=0.1, maximum=2, value=1.0, step=0.1, label="gain", interactive=True)
                 sigmoid_offset = Slider(minimum=-10, maximum=10, value=0.0, step=0.1, label="offset X", interactive=True)
             map(lambda x: x.style(container=False), [clamp_min, clamp_max, sigmoid_gain, sigmoid_offset])
@@ -74,7 +74,11 @@ class OutputSetting:
                 else:
                     return hide
             def trans_change(x):
-                if x == "Linear":
+                if x == "Auto [0,1]":
+                    return hide, hide
+                elif x == "Auto [-1,1]":
+                    return hide, hide
+                elif x == "Linear":
                     return show, hide
                 else:
                     return hide, show
