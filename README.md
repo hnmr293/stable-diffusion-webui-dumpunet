@@ -1,85 +1,191 @@
-- [これは何](#これは何)
-- [概略](#概略)
-- [特徴量の抽出](#特徴量の抽出)
-- [ブロックごとのプロンプトの変更](#ブロックごとのプロンプトの変更)
-  - [Dynamic Prompts との併用](#dynamic-prompts-との併用)
-- [差分の可視化](#差分の可視化)
-- [TODO](#todo)
+[English ver. (WIP)](./README_en.md)
 
-# これは何
+# Dump U-Net
+
+## 目次
+
+<!-- TOC -->
+
+- [Dump U-Net](#dump-u-net)
+    - [1. 目次](#1-%E7%9B%AE%E6%AC%A1)
+    - [2. これは何](#2-%E3%81%93%E3%82%8C%E3%81%AF%E4%BD%95)
+    - [3. できること](#3-%E3%81%A7%E3%81%8D%E3%82%8B%E3%81%93%E3%81%A8)
+    - [4. 特徴量の抽出](#4-%E7%89%B9%E5%BE%B4%E9%87%8F%E3%81%AE%E6%8A%BD%E5%87%BA)
+        - [4.1. U-Net の特徴量画像](#41-u-net-%E3%81%AE%E7%89%B9%E5%BE%B4%E9%87%8F%E7%94%BB%E5%83%8F)
+            - [4.1.1. 画面説明](#411-%E7%94%BB%E9%9D%A2%E8%AA%AC%E6%98%8E)
+            - [4.1.2. Colorization](#412-colorization)
+            - [4.1.3. Dump Setting](#413-dump-setting)
+            - [4.1.4. 抽出画像の例](#414-%E6%8A%BD%E5%87%BA%E7%94%BB%E5%83%8F%E3%81%AE%E4%BE%8B)
+        - [4.2. アテンション層の特徴量抽出](#42-%E3%82%A2%E3%83%86%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%B3%E5%B1%A4%E3%81%AE%E7%89%B9%E5%BE%B4%E9%87%8F%E6%8A%BD%E5%87%BA)
+            - [4.2.1. 画面説明](#421-%E7%94%BB%E9%9D%A2%E8%AA%AC%E6%98%8E)
+            - [4.2.2. 例](#422-%E4%BE%8B)
+    - [5. ブロックごとのプロンプトの変更](#5-%E3%83%96%E3%83%AD%E3%83%83%E3%82%AF%E3%81%94%E3%81%A8%E3%81%AE%E3%83%97%E3%83%AD%E3%83%B3%E3%83%97%E3%83%88%E3%81%AE%E5%A4%89%E6%9B%B4)
+        - [5.1. 概要](#51-%E6%A6%82%E8%A6%81)
+        - [5.2. 画面説明](#52-%E7%94%BB%E9%9D%A2%E8%AA%AC%E6%98%8E)
+        - [5.3. 記法](#53-%E8%A8%98%E6%B3%95)
+        - [5.4. 例](#54-%E4%BE%8B)
+        - [5.5. Dynamic Prompts との併用](#55-dynamic-prompts-%E3%81%A8%E3%81%AE%E4%BD%B5%E7%94%A8)
+    - [6. TODO](#6-todo)
+
+<!-- /TOC -->
+
+## これは何
 
 U-Net の特徴量を可視化するための [stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) の拡張です。
 
-# 概略
+## できること
 
-1. U-Net の各ブロックにおける特徴量を抽出し、ch ごとの画像として出力する。
-2. U-Net の各ブロックでプロンプトを変更しながら画像を生成する。
+1. モデルの途中出力の可視化：U-Net の各ブロックおよびアテンション層の特徴量を可視化する。
+2. 層別プロンプト：U-Net の各ブロックでプロンプトを変更しながら画像を生成する。
 3. 2.でプロンプトを変更したときの U-Net の特徴量の差分を可視化する。
 
-# 特徴量の抽出
+## 特徴量の抽出
 
-![](images/README_00.png)
-
-通常の出力画像：
+例として以下の画像を使用する。
 
 ![Model Output Image](images/00.png)
 
 ```
 Model: waifu-diffusion-v1-3-float16 (84692140)
 Prompt: a cute girl, pink hair
+Sampling steps: 20
 Sampling Method: DPM++ 2M Karras
 Size: 512x512
 CFG Scale: 7
 Seed: 1719471015
 ```
 
-U-Net の特徴量画像：
+### U-Net の特徴量画像
 
-特徴量を `v` として、`|v|` が大きいピクセルを白、小さいピクセルを黒で表示する。
+たとえば以下のような画像を生成する。
+
+グレースケール出力 `OUT11, steps 20, Black/White, Sigmoid(1,0)`
+![](images/README_00_01_gray.png)
+
+カラー出力 `OUT11, steps 20, Custom, Sigmoid(1,0), H=(2+v)/3, S=1.0, V=0.5`
+![](images/README_00_01_color.png)
+
+#### 画面説明
+
+![](images/README_00.png)
+
+<dl>
+<dt>Extract U-Net features</dt>
+<dd>チェックすると U-Net の特徴量抽出が有効になる。</dd>
+<dt>Layers</dt>
+<dd>抽出対象のブロックを指定する。コンマ区切り、ハイフン区切りが使える。<code>IN11-M00-OUT00</code>は繋がっている。</dd>
+<dt>Image saving steps</dt>
+<dd>抽出対象のステップを指定する。</dd>
+<dt>Colorization</dt>
+<dd>出力画像の色を指定する。</dd>
+<dt>Dump Setting</dt>
+<dd>特徴量のバイナリを出力する設定を行う。</dd>
+<dt>Selected Layer Info</dt>
+<dd><code>Layers</code> で指定したブロックの詳細が出力される。</dd>
+</dl>
+
+抽出するブロックの指定方法：
+
+```
+単体指定： IN00
+    IN00 から IN11、M00、OUT00 から OUT11 が使える。
+複数指定： IN00, IN01, M00
+    コンマ `,` で区切って複数のブロックを指定できる。
+範囲指定： IN00-OUT11
+    ハイフン `-` で区切って範囲を指定できる。
+    両端は範囲に含まれる。
+    IN11, M00, OUT00 は繋がっている。
+範囲指定（ステップ付き）： IN00-OUT11(+2)
+    範囲指定の後に `(+数字)` と書くとステップを表す。
+    +1 と書くと通常の範囲指定と同じ。
+    +2 と書くと一つ飛ばしで指定したことになる。
+    例えば上記の例は
+    IN00, IN02, IN04, IN06, IN08, IN10,
+    M00,
+    OUT01, OUT03, OUT05, OUT07, OUT09, OUT11
+    を指定したことになる。
+```
+
+#### Colorization
+
+![](images/README_00_02.png)
+
+<dl>
+<dt>Colorize method</dt>
+<dd>色付けの方法を指定する。<br/>
+<code>White/Black</code> は特徴量を <code>v</code> として、<code>|v|</code> が大きいピクセルを白、小さいピクセルを黒で表示する。<br/>
+<code>Red/Blue</code> は <code>v</code> が大きいピクセルを赤、小さいピクセルを青で表示する。</br>
+<code>Custom</code> は <code>v</code> の値から RGB もしくは HSL 色空間の値を自由に計算する。</dd>
+<dt>Value transform</dt>
+<dd>特徴量の値は必ずしもそのまま色の指定に使える大きさではない。そのときにピクセル値へ変換するときの変換方法を指定する。<br/>
+<code>Auto [0,1]</code> は与えられた特徴量の最小値と最大値を使って値を <code>[0,1]</code> に線型変換する。<br/>
+<code>Auto [-1,1]</code> は同じく <code>[-1,1]</code> に線型変換する。<br/>
+<code>Linear</code> は <code>Clamp min./max.</code> を指定して、その範囲を <code>Colorize method</code> が <code>White/Black</code> のとき <code>[0,1]</code> に、それ以外のとき <code>[-1,1]</code> に線型変換する。<br/><img src="images/README_00_03.png"/><br/>
+<code>Sigmoid</code> は <code>gain</code> と <code>offset</code> を指定して、<code>v + offset</code> を<a href="https://ja.wikipedia.org/wiki/%E3%82%B7%E3%82%B0%E3%83%A2%E3%82%A4%E3%83%89%E9%96%A2%E6%95%B0" target="_blank">シグモイド関数</a>で変換する。出力は <code>Colorize method</code> が <code>White/Black</code> のとき <code>[0,1]</code> に、それ以外のとき <code>[-1,1]</code> になる。<br/><img src="images/README_00_04.png"/>
+<dt>Color space</dt>
+<dd><code>Value transform</code> で変換した値 <code>v</code> をピクセル値に変換するコードを書く。<code>v</code> の範囲は <code>Colorize method</code> および <code>Value transform</code> の指定により <code>[0,1]</code> もしくは <code>[-1,1]</code> で与えられる。計算結果は <code>[0,1]</code> でクリップされる。<br/>コードは <code>numpy</code> をグローバル環境として実行される。たとえば、<code>abs(v)</code> は <code>numpy.abs(v)</code> の意味になる。<br/><img src="images/README_00_05.png"/></dd>
+</dl>
+
+#### Dump Setting
+
+![](images/README_00_06.png)
+
+<dl>
+<dt>Dump feature tensors to files</dt>
+<dd>チェックすると U-Net の特徴量をファイルとして書き出す。</dd>
+<dt>Output path</dt>
+<dd>バイナリを出力するディレクトリを指定する。存在しなければ作成される。</dd>
+</dl>
+
+#### 抽出画像の例
+
+左から順に、`steps=1,5,10` の画像。
 
 - IN00 (64x64, 320ch)
+![IN00](images/IN00.jpg)
 
-step 1
+- IN05 (32x32, 640ch)
+![IN05](images/IN05.jpg)
 
-![IN00 step1](images/IN00-step01.png)
+- M00 (8x8, 1280ch)
+![M00](images/M00.jpg)
 
-step 10
-
-![IN00 step10](images/IN00-step10.png)
-
-step 20
-
-![IN00 step20](images/IN00-step20.png)
-
-- OUT02 (16x16, 1280ch)
-
-step 20
-
-![OUT02 step20](images/OUT02-step20.png)
+- OUT06 (32x32, 640ch)
+![OUT06](images/OUT06.jpg)
 
 - OUT11 (64x64, 320ch)
+![OUT11](images/OUT11.jpg)
 
-step 1
+### アテンション層の特徴量抽出
 
-![OUT11 step1](images/OUT11-step01.png)
+現バージョンではクロスアテンション層の `Q*K` を出力する。
 
-step 10
+#### 画面説明
 
-![OUT11 step10](images/OUT11-step10.png)
+![](images/README_00_07.png)
 
-step 20
+ほぼ [U-Net の特徴量画像](#41-u-net-%E3%81%AE%E7%89%B9%E5%BE%B4%E9%87%8F%E7%94%BB%E5%83%8F) と同じ。
 
-![OUT11 step20](images/OUT11-step20.png)
+#### 例
 
-カラーマップモード:
+横軸がトークン位置を表す。最初に開始トークン、最後に終了トークンが挿入されているので、間の75枚の画像が各トークンの影響を表す。
 
-絶対値を基にした白黒でなく、正の値を赤で、負の値を青で表す。ゼロに近いほど黒くなる。
+縦軸はアテンション層のヘッド。今のモデルでは <code>h=8</code> なので画像が8つ並ぶことになる。
 
-![OUT11 step20 cm](images/OUT11-step20-cm.png)
+「`pink hair` はこの層に効いてるのかな？」みたいなことが分かる。
 
-# ブロックごとのプロンプトの変更
+- IN01
+![Attention IN01](images/attn-IN01.png)
 
-![](images/README_01.png)
+- M00
+![Attention M00](images/attn-M00.png)
+
+- OUT10
+![Attention OUt10](images/attn-OUT10.png)
+
+## ブロックごとのプロンプトの変更
+
+### 概要
 
 内容は以下の記事を参照。
 
@@ -107,6 +213,19 @@ Seed: 3292581281
 - M00 のみ cute を excellent に変更して生成した画像
 
 となっている。
+
+### 画面説明
+
+![](images/README_01.png)
+
+ほぼ [U-Net の特徴量画像](#41-u-net-%E3%81%AE%E7%89%B9%E5%BE%B4%E9%87%8F%E7%94%BB%E5%83%8F) と同じ。
+
+<dl>
+<dt>Output difference map of U-Net features between with and without Layer Prompt</dt>
+<dd>ブロックごとのプロンプトが有効の時と無効の時の U-Net の特徴量を比較して差分画像を出力する。</dd>
+</dl>
+
+### 記法
 
 プロンプト中で次に示す特殊な記法を用いることで、ブロックごとのプロンプトを指定できる。
 
@@ -166,6 +285,8 @@ a  excellent  girl
     他のどのブロックにも当てはまらなかった場合、ここで指定したプロンプトが使われる。
 ```
 
+### 例
+
 いくつか例を挙げる。
 
 ```
@@ -186,7 +307,7 @@ a  excellent  girl
 
 5: IN00からOUT11まで（つまり全体）でAを使う。ただしM00ではBを使う。
 
-## Dynamic Prompts との併用
+### Dynamic Prompts との併用
 
 検証には [Dynamic Prompts](https://github.com/adieyal/sd-dynamic-prompts) との併用が便利。
 
@@ -202,15 +323,7 @@ a  excellent  girl
 
 実際の例：[ブロック別プロンプトで特定の1ブロックにプロンプトを追加してみるテスト](https://gist.github.com/hnmr293/7f240aa5b74c0f5a27a9764fdd9672e2)
 
-# 差分の可視化
+## TODO
 
-`Layer Prompt` タブの `Output difference map of U-Net features between with and without Layer Prompt` をオンにすると、ブロックごとのプロンプトを使った場合と使わない場合で U-Net の特徴量にどのような差があるかを可視化した画像を生成する。
-
-可視化する層とステップ数は `U-Net features` タブで指定する。
-
-（書きかけ）
-
-# TODO
-
-- 1.特徴量の抽出の画面説明
-- 差分の可視化についてもうちょっと書く
+- K, VQK の可視化
+- セルフアテンション層の可視化
