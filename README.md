@@ -198,7 +198,7 @@ Seed: 1719471015
 
 ```
 Model: waifu-diffusion-v1-3-float16 (84692140)
-Prompt: a (~: IN00-OUT11: cute: M00: excellent :~) girl
+Prompt: a (~: IN00-OUT11: cute; M00: excellent :~) girl
 Sampling Method: Euler a
 Size: 512x512
 CFG Scale: 7
