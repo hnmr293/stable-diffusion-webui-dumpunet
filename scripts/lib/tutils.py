@@ -71,7 +71,7 @@ def tensor_to_image(
                 # create image
                 x = (iw+1) * ix
                 y = (ih+1) * iy
-                image = _tensor_to_image(array, color)
+                image = color(array)
                 canvas.paste(Image.fromarray(image, color.format), (x, y))
         
         canvases.append(canvas)
@@ -90,26 +90,6 @@ def save_tensor(
             array = t.cpu().numpy().astype(np.float32)
             io.write(bytearray(array))
     
-
-def _tensor_to_image(array: np.ndarray, color: Colorizer):
-    # array := (-∞, ∞)
-    
-    return color(array)
-    #
-    #if color:
-    #    def colorize(v: float):
-    #        # v = -1 .. 1 を
-    #        # v < 0 のとき青 (0, 0, 1)
-    #        # v > 0 のとき赤 (1 ,0, 0)
-    #        # にする
-    #        rgb = (v if v > 0.0 else 0.0, 0.0, -v if v < 0.0 else 0.0)
-    #        return rgb
-    #    colorize2 = np.vectorize(colorize, otypes=[np.float32, np.float32, np.float32])
-    #    rgb = colorize2(np.clip(array, -1.0, 1.0))
-    #    return np.clip((np.dstack(rgb) * 256), 0, 255).astype(np.uint8)
-    #        
-    #else:
-    #    return np.clip(np.abs(array) * 256, 0, 255).astype(np.uint8)
 
 def get_grid_num(layer: str, width: int, height: int):
     assert layer is not None and layer != "", E("<Layers> must not be empty.")
