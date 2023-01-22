@@ -48,7 +48,7 @@ class FeatureExtractor(FeatureExtractorBase[FeatureInfo]):
                 if self.steps_on_batch in self.steps:
                     self.log(f"{self.steps_on_batch} {layername} {inputs[0].size()} {outputs.size()}")
                     
-                    images_per_batch = outputs.size()[0] // 2 # two same outputs per sample???
+                    images_per_batch = p.batch_size
                     
                     for image_index, output in enumerate(
                         outputs.detach().clone()[:images_per_batch],

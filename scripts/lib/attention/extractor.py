@@ -56,9 +56,8 @@ class AttentionExtractor(FeatureExtractorBase):
                         # qk := (batch, head, token, height*width)
                         # vqk := (batch, height*width, ch)
                         
-                        images_per_batch = qks.shape[0] // 2
-                        assert qks.shape[0] == vqks.shape[0]
-                        assert qks.shape[0] % 2 == 0
+                        images_per_batch = p.batch_size
+                        assert qks.shape[0] == vqks.shape[0], f"{qks.shape}, {vqks.shape}"
                         
                         for image_index, (vk, vqk) in enumerate(
                             zip(qks[:images_per_batch], vqks[:images_per_batch]),
