@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from functools import partial
 import json
 
-from gradio import Blocks, Group, Tab, Row, Column, Textbox, Checkbox, Radio, Slider, Number, HTML, Accordion
+from gradio import Blocks, Group, Tab, Row, Column, Textbox, Checkbox, Radio, Slider, Number, CheckboxGroup, HTML, Accordion
+from gradio.components import Component
 
 from scripts.lib import layerinfo
 
@@ -24,9 +25,10 @@ class OutputSetting:
     linear_max: Slider
     sigmoid_gain: Slider
     sigmoid_offset: Slider
+    others: dict[str,Component]
     
     @staticmethod
-    def build(id: Callable[[str],str]):
+    def build(id: Callable[[str],str], callback1: Callable[[Callable[[str],str]],dict[str,Component]]|None = None):
         with Row():
             layers = Textbox(
                 label="Layers",
@@ -39,6 +41,12 @@ class OutputSetting:
                 placeholder="eg. 1,5-20(+5)",
                 elem_id=id("steps")
             )
+        
+        components: dict[str,Component] = {}
+        if callback1 is not None:
+            components1 = callback1(id)
+            if components1 is not None:
+                components.update(components1)
         
         with Accordion("Colorization", open=False):
             show = {"visible": True,  "__type__": "update"}
@@ -101,7 +109,8 @@ class OutputSetting:
             h, s, l,
             trans,
             clamp_min, clamp_max,
-            sigmoid_gain, sigmoid_offset
+            sigmoid_gain, sigmoid_offset,
+            components
         )
 
 @dataclass
@@ -223,7 +232,7 @@ def build_attn(id_: Callable[[str],str]):
             elem_id=id("checkbox")
         )
         
-        settings = OutputSetting.build(id)
+        settings = OutputSetting.build(id, build_attn_target)
         
         with Accordion(label="Dump Setting", open=False):
             dump = DumpSetting.build("Dump feature tensors to files", id)
@@ -237,6 +246,10 @@ def build_attn(id_: Callable[[str],str]):
         dump,
         info
     )
+
+def build_attn_target(id_: Callable[[str],str]) -> dict[str,Component]:
+    targets = CheckboxGroup(["K", "Q*K", "V*Q*K"], label="Output features")
+    return {"vqks": targets}
 
 def build_layerprompt(id_: Callable[[str],str]):
     id = lambda s: id_(f"layerprompt-{s}")

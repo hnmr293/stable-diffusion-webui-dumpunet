@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 
 class AttentionExtractor(FeatureExtractorBase):
 
+    features_to_save: list[str]
+    
     # image_index -> step -> Features
     extracted_features: MultiImageFeatures[AttnFeatureInfo]
     
@@ -34,9 +36,18 @@ class AttentionExtractor(FeatureExtractorBase):
         total_steps: int,
         layer_input: str,
         step_input: str,
+        features: list[str],
         path: str|None,
     ):
+        if features is None or len(features) == 0:
+            if enabled:
+                enabled = False
+                print("\033[33m", file=sys.stderr, end="", flush=False)
+                print(E("Attention: Disabled because no features are selected. Select features in <Output features>."), file=sys.stderr, end="", flush=False)
+                print("\033[0m", file=sys.stderr)
+        
         super().__init__(runner, enabled, total_steps, layer_input, step_input, path)
+        self.features_to_save = features
         self.extracted_features = MultiImageFeatures()
     
     def hook_unet(self, p: StableDiffusionProcessing, unet: nn.Module):
@@ -52,21 +63,21 @@ class AttentionExtractor(FeatureExtractorBase):
                         self.log(f"{self.steps_on_batch:>03} {layername}-{n}-{depth}-attn{c} ({'cross' if (block.disable_self_attn or 1 < c) else 'self'})")
                         self.log(f"    | {shape(x),shape(context)} -> {shape(result)}")
                         
-                        qks, vqks = self.process_attention(module, x, context)
+                        ks, qks, vqks = self.process_attention(module, x, context)
                         # qk := (batch, head, token, height*width)
                         # vqk := (batch, height*width, ch)
                         
                         images_per_batch = p.batch_size
                         assert qks.shape[0] == vqks.shape[0], f"{qks.shape}, {vqks.shape}"
                         
-                        for image_index, (vk, vqk) in enumerate(
-                            zip(qks[:images_per_batch], vqks[:images_per_batch]),
+                        for image_index, (k, vk, vqk) in enumerate(
+                            zip(ks[:images_per_batch], qks[:images_per_batch], vqks[:images_per_batch]),
                             (self.batch_num-1) * images_per_batch
                         ):
                             features = self.extracted_features[image_index][self.steps_on_batch]
                             features.add(
                                 layername,
-                                AttnFeatureInfo(vk, vqk)
+                                AttnFeatureInfo(k, vk, vqk)
                             )
                 
                 return result
@@ -92,8 +103,8 @@ class AttentionExtractor(FeatureExtractorBase):
         if getattr(hypernetwork, "apply_hypernetworks"):
             ctx_k, ctx_v = hypernetwork.apply_hypernetworks(shared.loaded_hypernetworks, context)
         elif getattr(hypernetwork, "apply_hypernetwork"):
-            ctx_k, ctx_v = hypernetwork.apply_hypernetwork(
-                shared.loaded_hypernetwork,
+            ctx_k, ctx_v = hypernetwork.apply_hypernetwork( # type: ignore
+                shared.loaded_hypernetwork, # type: ignore
                 context if context is not None else x
             )
         else:
@@ -119,18 +130,20 @@ class AttentionExtractor(FeatureExtractorBase):
         o_in = einsum('b i j, b j d -> b i d', sim, v)
         o = rearrange(o_in, '(b h) n d -> b n (h d)', h=module.heads)
         
+        kk: Tensor = rearrange(k, '(b h) t d -> b h t d', h=module.heads).detach().clone()
         qk: Tensor = rearrange(sim, '(b h) d t -> b h t d', h=module.heads).detach().clone()
         vqk: Tensor = o.detach().clone()
         
         self.log(f"    | q: {shape(q_in)} # {shape(q)}")
         self.log(f"    | k: {shape(k_in)} # {shape(k)}")
         self.log(f"    | v: {shape(v_in)} # {shape(v)}")
+        #self.log(f"    | kk: {shape(kk)} # {shape(k)}")
         #self.log(f"    | qk: {shape(qk)} # {shape(sim)}")
         #self.log(f"    | vqk: {shape(vqk)}")
         
         del q_in, k_in, v_in, q, k, v, sim, o_in, o
         
-        return qk, vqk
+        return kk, qk, vqk
     
     def add_images(
         self,
@@ -150,21 +163,38 @@ class AttentionExtractor(FeatureExtractorBase):
     
     def feature_to_grid_images(self, feature: AttnFeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: Colorizer):
         w, h, ch = get_shape(layer, width, height)
-        # qk
-        qk = feature.qk
-        heads_qk, ch_qk, n_qk = qk.shape
-        assert ch_qk == 77
-        assert w * h == n_qk, f"w={w}, h={h}, n_qk={n_qk}"
-        qk1 = rearrange(qk, 'a t (h w) -> (a t) h w', h=h).contiguous()
-        # vqk
-        vqk = feature.vqk
-        n_vqk, ch_vqk = vqk.shape
-        assert w * h == n_vqk, f"w={w}, h={h}, n_qk={n_vqk}"
-        assert ch == ch_vqk, f"ch={ch}, ch_vqk={ch_vqk}"
-        vqk1 = rearrange(vqk, '(h w) c -> c h w', h=h).contiguous()
+        images = []
         
-        #print(img_idx, step, layer, qk1.shape, vqk1.shape)
-        return tutils.tensor_to_image(qk1, ch_qk, heads_qk, color)
+        if "K" in self.features_to_save:
+            k = feature.k
+            heads_k, ch_k, n_k = k.shape
+            assert ch_k % 77 == 0, f"ch_k={ch_k}"
+            k1 = rearrange(k, 'a t n -> a n t').contiguous()
+            k_images = tutils.tensor_to_image(k1, 1, heads_k, color)
+            images.extend(k_images)
+            del k1
+        
+        if "Q*K" in self.features_to_save:
+            qk = feature.qk
+            heads_qk, ch_qk, n_qk = qk.shape
+            assert ch_qk % 77 == 0, f"ch_qk={ch_qk}"
+            assert w * h == n_qk, f"w={w}, h={h}, n_qk={n_qk}"
+            qk1 = rearrange(qk, 'a t (h w) -> (a t) h w', h=h).contiguous()
+            qk_images = tutils.tensor_to_image(qk1, ch_qk, heads_qk, color)
+            images.extend(qk_images)
+            del qk1
+        
+        if "V*Q*K" in self.features_to_save:
+            vqk = feature.vqk
+            n_vqk, ch_vqk = vqk.shape
+            assert w * h == n_vqk, f"w={w}, h={h}, n_vqk={n_vqk}"
+            assert ch == ch_vqk, f"ch={ch}, ch_vqk={ch_vqk}"
+            vqk1 = rearrange(vqk, '(h w) c -> c h w', h=h).contiguous()
+            vqk_images = tutils.tensor_to_grid_images(vqk1, layer, width, height, color)
+            images.extend(vqk_images)
+            del vqk1
+        
+        return images
     
     def save_features(self, feature: AttnFeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, path: str, basename: str):
         w, h, ch = get_shape(layer, width, height)

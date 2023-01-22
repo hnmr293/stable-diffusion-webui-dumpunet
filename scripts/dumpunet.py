@@ -57,6 +57,7 @@ class Script(scripts.Script):
             result.attn.enabled,
             result.attn.settings.layers,
             result.attn.settings.steps,
+            result.attn.settings.others["vqks"],
             result.attn.settings.colorize, result.attn.settings.colorspace,
             result.attn.settings.R, result.attn.settings.G, result.attn.settings.B,
             result.attn.settings.H, result.attn.settings.S, result.attn.settings.L,
@@ -126,6 +127,7 @@ class Script(scripts.Script):
             attn_enabled: bool,
             attn_layers: str,
             attn_steps: str,
+            attn_vqks: list[str],
             attn_color_: str, attn_cs: str,
             ar: str, ag: str, ab: str,
             ah: str, as_: str, al: str,
@@ -146,7 +148,7 @@ class Script(scripts.Script):
             
             debug: bool,
     ):
-                  
+        
         if not unet_features_enabled and not attn_enabled and not layerprompt_enabled:
             return process_images(p)
         
@@ -185,6 +187,7 @@ class Script(scripts.Script):
             p.steps,
             attn_layers,
             attn_steps,
+            attn_vqks,
             attn_path if attn_path_on else None
         )
         
