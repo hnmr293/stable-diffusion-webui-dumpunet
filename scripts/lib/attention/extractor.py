@@ -100,9 +100,9 @@ class AttentionExtractor(FeatureExtractorBase):
         # k_in, v_in : embedding vector kv (cross-attention) ([2, 77, 320]) or unet features kv (self-attention) ([2, 4096, 320])
         # q,k,v : head-separated q_in, k_in and v_in
         
-        if getattr(hypernetwork, "apply_hypernetworks"):
+        if getattr(hypernetwork, "apply_hypernetworks", None) is not None:
             ctx_k, ctx_v = hypernetwork.apply_hypernetworks(shared.loaded_hypernetworks, context)
-        elif getattr(hypernetwork, "apply_hypernetwork"):
+        elif getattr(hypernetwork, "apply_hypernetwork", None) is not None:
             ctx_k, ctx_v = hypernetwork.apply_hypernetwork( # type: ignore
                 shared.loaded_hypernetwork, # type: ignore
                 context if context is not None else x
