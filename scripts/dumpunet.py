@@ -45,6 +45,7 @@ class Script(scripts.Script):
             result.unet.enabled,
             result.unet.settings.layers,
             result.unet.settings.steps,
+            result.unet.settings.average,
             result.unet.settings.colorize, result.unet.settings.colorspace,
             result.unet.settings.R, result.unet.settings.G, result.unet.settings.B,
             result.unet.settings.H, result.unet.settings.S, result.unet.settings.L,
@@ -57,6 +58,7 @@ class Script(scripts.Script):
             result.attn.enabled,
             result.attn.settings.layers,
             result.attn.settings.steps,
+            result.attn.settings.average,
             result.attn.settings.others["vqks"],
             result.attn.settings.colorize, result.attn.settings.colorspace,
             result.attn.settings.R, result.attn.settings.G, result.attn.settings.B,
@@ -71,6 +73,7 @@ class Script(scripts.Script):
             result.lp.diff_enabled,
             result.lp.diff_settings.layers,
             result.lp.diff_settings.steps,
+            result.lp.diff_settings.average,
             result.lp.diff_settings.colorize, result.lp.diff_settings.colorspace,
             result.lp.diff_settings.R, result.lp.diff_settings.G, result.lp.diff_settings.B,
             result.lp.diff_settings.H, result.lp.diff_settings.S, result.lp.diff_settings.L,
@@ -117,6 +120,7 @@ class Script(scripts.Script):
             unet_features_enabled: bool,
             layer_input: str,
             step_input: str,
+            favg: bool,
             color_: str, colorspace: str,
             fr: str, fg: str, fb: str,
             fh: str, fs: str, fl: str,
@@ -127,6 +131,7 @@ class Script(scripts.Script):
             attn_enabled: bool,
             attn_layers: str,
             attn_steps: str,
+            aavg: bool,
             attn_vqks: list[str],
             attn_color_: str, attn_cs: str,
             ar: str, ag: str, ab: str,
@@ -139,6 +144,7 @@ class Script(scripts.Script):
             layerprompt_diff_enabled: bool,
             lp_diff_layers: str,
             lp_diff_steps: str,
+            lavg: bool,
             lp_diff_color_: str, lcs: str,
             lr: str, lg: str, lb: str,
             lh: str, ls: str, ll: str,
@@ -202,14 +208,14 @@ class Script(scripts.Script):
             proc1, features1, diff1, attn1 = exec(p1, lp0, [ex, exlp, at])
             builder1 = ProcessedBuilder()
             builder1.add_proc(proc1)
-            ex.add_images(p1, builder1, features1, color)
-            at.add_images(p1, builder1, attn1, attn_color)
+            ex.add_images(p1, builder1, features1, favg, color)
+            at.add_images(p1, builder1, attn1, aavg, attn_color)
             # layer prompt enabled
             proc2, features2, diff2, attn2 = exec(p2, lp, [ex, exlp, at])
             builder2 = ProcessedBuilder()
             builder2.add_proc(proc1)
-            ex.add_images(p2, builder2, features2, color)
-            at.add_images(p2, builder2, attn2, attn_color)
+            ex.add_images(p2, builder2, features2, favg, color)
+            at.add_images(p2, builder2, attn2, aavg, attn_color)
             
             proc1 = builder1.to_proc(p1, proc1)
             proc2 = builder2.to_proc(p2, proc2)
@@ -227,7 +233,7 @@ class Script(scripts.Script):
                 
             t0 = int(time.time())
             for img_idx, step, layer, tensor in feature_diff(diff1, diff2, abs=not lp_diff_color):
-                canvases = feature_to_grid_images(tensor, layer, p.width, p.height, lp_diff_color)
+                canvases = feature_to_grid_images(tensor, layer, p.width, p.height, lavg, lp_diff_color)
                 for canvas in canvases:
                     putils.add_ref(proc, img_idx, canvas, f"Layer Name: {layer}, Feature Steps: {step}")
                     
@@ -239,8 +245,8 @@ class Script(scripts.Script):
             proc, features1, attn1 = exec(p, lp, [ex, at])
             builder = ProcessedBuilder()
             builder.add_proc(proc)
-            ex.add_images(p, builder, features1, color)
-            at.add_images(p, builder, attn1, attn_color)
+            ex.add_images(p, builder, features1, favg, color)
+            at.add_images(p, builder, attn1, aavg, attn_color)
             proc = builder.to_proc(p, proc)
             
         return proc

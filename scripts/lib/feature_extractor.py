@@ -77,6 +77,7 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
         p: StableDiffusionProcessing,
         builder: ProcessedBuilder,
         extracted_features: MultiImageFeatures[TInfo],
+        add_average: bool,
         color: Colorizer
     ):
         
@@ -100,7 +101,7 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
                     if shared.state.interrupted:
                         break
                     
-                    canvases = self.feature_to_grid_images(feature, layer, idx, step, p.width, p.height, color)
+                    canvases = self.feature_to_grid_images(feature, layer, idx, step, p.width, p.height, add_average, color)
                     for canvas in canvases:
                         builder.add_ref(idx, canvas, None, {"Layer Name": layer, "Feature Steps": step})
                     
@@ -108,9 +109,11 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
                         basename = f"{idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
                         self.save_features(feature, layer, idx, step, p.width, p.height, self.path, basename)
                     
+                    if hasattr(shared.total_tqdm, "_tqdm"):
+                        shared.total_tqdm._tqdm.set_postfix_str(layer.ljust(5)) # type: ignore
                     shared.total_tqdm.update()
         
-    def feature_to_grid_images(self, feature: TInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: Colorizer):
+    def feature_to_grid_images(self, feature: TInfo, layer: str, img_idx: int, step: int, width: int, height: int, add_average: bool, color: Colorizer):
         raise NotImplementedError(f"{self.__class__.__name__}.feature_to_grid_images")
     
     def save_features(self, feature: TInfo, layer: str, img_idx: int, step: int, width: int, height: int, path: str, basename: str):

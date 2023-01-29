@@ -70,8 +70,8 @@ class FeatureExtractor(FeatureExtractorBase[FeatureInfo]):
             target = get_unet_layer(unet, layer)
             self.hook_layer(target, create_hook(layer))
     
-    def feature_to_grid_images(self, feature: FeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, color: Colorizer):
-        return feature_to_grid_images(feature, layer, width, height, color)
+    def feature_to_grid_images(self, feature: FeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, add_average: bool, color: Colorizer):
+        return feature_to_grid_images(feature, layer, width, height, add_average, color)
     
     def save_features(self, feature: FeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, path: str, basename: str):
         save_features(feature, path, basename)

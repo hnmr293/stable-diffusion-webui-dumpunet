@@ -12,6 +12,7 @@ from scripts.lib import layerinfo
 class OutputSetting:
     layers: Textbox
     steps: Textbox
+    average: Checkbox
     colorize: Radio
     colorspace: Radio
     R: Textbox
@@ -41,6 +42,12 @@ class OutputSetting:
                 placeholder="eg. 1,5-20(+5)",
                 elem_id=id("steps")
             )
+        
+        avg = Checkbox(
+            value=True,
+            label="Show averaged map",
+            elem_id=id("average")
+        )
         
         components: dict[str,Component] = {}
         if callback1 is not None:
@@ -103,6 +110,7 @@ class OutputSetting:
         return OutputSetting(
             layers,
             steps,
+            avg,
             colorize,
             colorspace,
             r, g, b,

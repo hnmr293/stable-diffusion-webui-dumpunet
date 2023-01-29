@@ -1,6 +1,7 @@
 import os
 import math
 
+import torch
 from torch import Tensor
 import numpy as np
 from PIL import Image
@@ -16,10 +17,11 @@ def tensor_to_grid_images(
     layer: str,
     width: int,
     height: int,
-    color: Colorizer
+    color: Colorizer,
+    add_average: bool = False,
 ):
     grid_x, grid_y = get_grid_num(layer, width, height)
-    canvases = tensor_to_image(tensor, grid_x, grid_y, color)
+    canvases = tensor_to_image(tensor, grid_x, grid_y, color, add_average)
     return canvases
 
 def tensor_to_image(
@@ -27,6 +29,7 @@ def tensor_to_image(
             grid_x: int,
             grid_y: int,
             color: Colorizer,
+            add_average: bool = False,
 ):
     # Regardless of wheather --opt-channelslast is enabled or not, 
     # feature.size() seems to return (batch, ch, h, w).
@@ -50,6 +53,11 @@ def tensor_to_image(
     
     canvases: list[Image.Image] = []
     
+    if add_average:
+        avg = torch.mean(tensor, 0) # tensor.shape: (ch, h, w) -> (h, w)
+        avg_img = tensor2d_to_image(avg, color)
+        canvases.append(avg_img)
+    
     for chs in each_slice(range(max_ch), grid_x * grid_y):
         chs = list(chs)
         
@@ -66,16 +74,23 @@ def tensor_to_image(
                     break
                 
                 ch = chs.pop(0)
-                array = tensor[ch].cpu().numpy().astype(np.float32)
+                image = tensor2d_to_image(tensor[ch], color)
                 
                 # create image
                 x = (iw+1) * ix
                 y = (ih+1) * iy
-                image = color(array)
-                canvas.paste(Image.fromarray(image, color.format), (x, y))
+                canvas.paste(image, (x, y))
         
         canvases.append(canvas)
     return canvases
+
+def tensor2d_to_image(
+    tensor: Tensor,
+    color: Colorizer,
+):
+    assert len(tensor.shape) == 2, f"tensor.shape = {tensor.shape}"
+    array = tensor.cpu().numpy().astype(np.float32)
+    return Image.fromarray(color(array), color.format)
 
 def save_tensor(
     tensor: Tensor,

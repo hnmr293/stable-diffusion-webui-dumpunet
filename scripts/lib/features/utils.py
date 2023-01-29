@@ -47,6 +47,7 @@ def feature_to_grid_images(
     layer: str,
     width: int,
     height: int,
+    add_average: bool,
     color: Colorizer
 ):
     tensor = feature
@@ -54,7 +55,7 @@ def feature_to_grid_images(
         tensor = feature.output
     assert isinstance(tensor, Tensor)
     
-    canvases = tutils.tensor_to_grid_images(tensor, layer, width, height, color)
+    canvases = tutils.tensor_to_grid_images(tensor, layer, width, height, color, add_average)
     return canvases
 
 def save_features(
