@@ -321,4 +321,3 @@ Actual examples are here (Japasese lang).
 ## TODO
 
 - visualize self-attention layer
-- 
