@@ -314,7 +314,7 @@ For instance, if you want to see the effect of changing the prompt in only one b
 
 to check the effect of `bad anatomy` in each block.
 
-Actual examples is here (Japasese lang).
+Actual examples are here (Japasese lang).
 
 [Test adding prompts to one specific block with prompts by block](https://gist.github.com/hnmr293/7f240aa5b74c0f5a27a9764fdd9672e2)
 
