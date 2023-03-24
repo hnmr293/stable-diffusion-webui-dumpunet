@@ -8,9 +8,9 @@ from PIL import Image
 
 from modules import shared
 
-from scripts.lib import layerinfo
-from scripts.lib.report import message as E
-from scripts.lib.colorizer import Colorizer
+from scripts.dumpunetlib import layerinfo
+from scripts.dumpunetlib.report import message as E
+from scripts.dumpunetlib.colorizer import Colorizer
 
 def tensor_to_grid_images(
     tensor: Tensor,

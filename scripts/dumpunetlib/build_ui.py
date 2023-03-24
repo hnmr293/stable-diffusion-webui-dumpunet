@@ -6,7 +6,7 @@ import json
 from gradio import Blocks, Group, Tab, Row, Column, Textbox, Checkbox, Radio, Slider, Number, CheckboxGroup, HTML, Accordion
 from gradio.components import Component
 
-from scripts.lib import layerinfo
+from scripts.dumpunetlib import layerinfo
 
 @dataclass
 class OutputSetting:

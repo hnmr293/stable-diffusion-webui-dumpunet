@@ -4,13 +4,13 @@ from torch import nn, Tensor
 
 from modules.processing import StableDiffusionProcessing
 
-from scripts.lib import layerinfo
-from scripts.lib.feature_extractor import FeatureExtractorBase
-from scripts.lib.features.featureinfo import FeatureInfo
-from scripts.lib.features.utils import feature_to_grid_images, save_features
-from scripts.lib.report import message as E
-from scripts.lib.utils import *
-from scripts.lib.colorizer import Colorizer
+from scripts.dumpunetlib import layerinfo
+from scripts.dumpunetlib.feature_extractor import FeatureExtractorBase
+from scripts.dumpunetlib.features.featureinfo import FeatureInfo
+from scripts.dumpunetlib.features.utils import feature_to_grid_images, save_features
+from scripts.dumpunetlib.report import message as E
+from scripts.dumpunetlib.utils import *
+from scripts.dumpunetlib.colorizer import Colorizer
 
 if TYPE_CHECKING:
     from scripts.dumpunet import Script

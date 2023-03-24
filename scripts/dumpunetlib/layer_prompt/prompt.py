@@ -16,10 +16,10 @@ from modules.prompt_parser import get_learned_conditioning as glc
 from modules.prompt_parser import ScheduledPromptConditioning
 glc : Callable[[Any,list[str],int],list[list[ScheduledPromptConditioning]]]
 
-from scripts.lib.extractor import ExtractorBase
-from scripts.lib import layerinfo
-from scripts.lib.layer_prompt.generator import LayerPromptGenerator, LayerPromptEraseGenerator, LayerPrompts
-from scripts.lib.layer_prompt.parser import BadPromptError
+from scripts.dumpunetlib.extractor import ExtractorBase
+from scripts.dumpunetlib import layerinfo
+from scripts.dumpunetlib.layer_prompt.generator import LayerPromptGenerator, LayerPromptEraseGenerator, LayerPrompts
+from scripts.dumpunetlib.layer_prompt.parser import BadPromptError
 
 if TYPE_CHECKING:
     from scripts.dumpunet import Script

@@ -6,8 +6,8 @@ from torch.utils.hooks import RemovableHandle
 
 from modules.processing import StableDiffusionProcessing
 
-from scripts.lib.features.featureinfo import MultiImageFeatures
-from scripts.lib.report import message as E
+from scripts.dumpunetlib.features.featureinfo import MultiImageFeatures
+from scripts.dumpunetlib.report import message as E
 
 if TYPE_CHECKING:
     from scripts.dumpunet import Script

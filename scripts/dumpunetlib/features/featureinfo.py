@@ -6,9 +6,9 @@ import torch
 from torch import Tensor
 import numpy as np
 
-from scripts.lib import layerinfo
-from scripts.lib.report import message as E
-from scripts.lib.utils import *
+from scripts.dumpunetlib import layerinfo
+from scripts.dumpunetlib.report import message as E
+from scripts.dumpunetlib.utils import *
 
 @dataclass
 class FeatureInfo:

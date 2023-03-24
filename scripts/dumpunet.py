@@ -7,17 +7,17 @@ from typing import Callable
 import modules.scripts as scripts
 from modules.processing import process_images, fix_seed, StableDiffusionProcessing, Processed
 
-from scripts.lib.build_ui import UI
-from scripts.lib.feature_extractor import FeatureExtractorBase
-from scripts.lib.features.extractor import FeatureExtractor
-from scripts.lib.features.utils import feature_diff, feature_to_grid_images
-from scripts.lib.tutils import save_tensor
-from scripts.lib.putils import ProcessedBuilder
-from scripts.lib.colorizer import Colorizer
-from scripts.lib.layer_prompt.prompt import LayerPrompt
-from scripts.lib.attention.extractor import AttentionExtractor
-from scripts.lib.report import message as E
-from scripts.lib import putils
+from scripts.dumpunetlib.build_ui import UI
+from scripts.dumpunetlib.feature_extractor import FeatureExtractorBase
+from scripts.dumpunetlib.features.extractor import FeatureExtractor
+from scripts.dumpunetlib.features.utils import feature_diff, feature_to_grid_images
+from scripts.dumpunetlib.tutils import save_tensor
+from scripts.dumpunetlib.putils import ProcessedBuilder
+from scripts.dumpunetlib.colorizer import Colorizer
+from scripts.dumpunetlib.layer_prompt.prompt import LayerPrompt
+from scripts.dumpunetlib.attention.extractor import AttentionExtractor
+from scripts.dumpunetlib.report import message as E
+from scripts.dumpunetlib import putils
 
 class Script(scripts.Script):
     

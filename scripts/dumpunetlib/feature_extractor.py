@@ -5,13 +5,13 @@ from typing import TypeVar, Generic, TYPE_CHECKING
 from modules import shared
 from modules.processing import StableDiffusionProcessing, Processed
 
-from scripts.lib.extractor import ExtractorBase
-from scripts.lib.features.featureinfo import MultiImageFeatures
-from scripts.lib.ui import retrieve_layers, retrieve_steps
-from scripts.lib.putils import ProcessedBuilder
-from scripts.lib.report import message as E
-from scripts.lib.utils import sorted_values, sorted_items
-from scripts.lib.colorizer import Colorizer
+from scripts.dumpunetlib.extractor import ExtractorBase
+from scripts.dumpunetlib.features.featureinfo import MultiImageFeatures
+from scripts.dumpunetlib.ui import retrieve_layers, retrieve_steps
+from scripts.dumpunetlib.putils import ProcessedBuilder
+from scripts.dumpunetlib.report import message as E
+from scripts.dumpunetlib.utils import sorted_values, sorted_items
+from scripts.dumpunetlib.colorizer import Colorizer
 
 if TYPE_CHECKING:
     from scripts.dumpunet import Script

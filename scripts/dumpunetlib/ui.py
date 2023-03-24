@@ -1,7 +1,7 @@
 import re
 
-from scripts.lib import layerinfo
-from scripts.lib.report import message as E
+from scripts.dumpunetlib import layerinfo
+from scripts.dumpunetlib.report import message as E
 
 #re_layer_pat = r"((?:IN|OUT)\d\d|M00|IN@@|OUT\$\$)"
 re_layer_pat = r"((?:IN|OUT)\d\d|M00)"

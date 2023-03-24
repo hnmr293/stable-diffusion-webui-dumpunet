@@ -11,14 +11,14 @@ from modules.processing import StableDiffusionProcessing
 from modules.hypernetworks import hypernetwork
 from modules import shared
 
-from scripts.lib.feature_extractor import FeatureExtractorBase
-from scripts.lib.features.featureinfo import MultiImageFeatures
-from scripts.lib.features.extractor import get_unet_layer
-from scripts.lib.attention.featureinfo import AttnFeatureInfo
-from scripts.lib import layerinfo, tutils
-from scripts.lib.colorizer import Colorizer
-from scripts.lib.utils import *
-from scripts.lib.report import message as E
+from scripts.dumpunetlib.feature_extractor import FeatureExtractorBase
+from scripts.dumpunetlib.features.featureinfo import MultiImageFeatures
+from scripts.dumpunetlib.features.extractor import get_unet_layer
+from scripts.dumpunetlib.attention.featureinfo import AttnFeatureInfo
+from scripts.dumpunetlib import layerinfo, tutils
+from scripts.dumpunetlib.colorizer import Colorizer
+from scripts.dumpunetlib.utils import *
+from scripts.dumpunetlib.report import message as E
 
 if TYPE_CHECKING:
     from scripts.dumpunet import Script

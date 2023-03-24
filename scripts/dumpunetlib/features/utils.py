@@ -2,9 +2,9 @@ from typing import Generator
 
 from torch import Tensor
 
-from scripts.lib import tutils
-from scripts.lib.colorizer import Colorizer
-from scripts.lib.features.featureinfo import FeatureInfo, MultiImageFeatures
+from scripts.dumpunetlib import tutils
+from scripts.dumpunetlib.colorizer import Colorizer
+from scripts.dumpunetlib.features.featureinfo import FeatureInfo, MultiImageFeatures
 
 def feature_diff(
     features1: MultiImageFeatures[FeatureInfo],
