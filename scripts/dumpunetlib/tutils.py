@@ -18,10 +18,10 @@ def tensor_to_grid_images(
     width: int,
     height: int,
     color: Colorizer,
-    add_average: bool = False,
+    average_type: str|None = None,
 ):
     grid_x, grid_y = get_grid_num(layer, width, height)
-    canvases = tensor_to_image(tensor, grid_x, grid_y, color, add_average)
+    canvases = tensor_to_image(tensor, grid_x, grid_y, color, average_type)
     return canvases
 
 def tensor_to_image(
@@ -29,7 +29,7 @@ def tensor_to_image(
             grid_x: int,
             grid_y: int,
             color: Colorizer,
-            add_average: bool = False,
+            average_type: str|None = None,
 ):
     # Regardless of wheather --opt-channelslast is enabled or not, 
     # feature.size() seems to return (batch, ch, h, w).
@@ -53,9 +53,8 @@ def tensor_to_image(
     
     canvases: list[Image.Image] = []
     
-    if add_average:
-        avg = torch.mean(tensor, 0) # tensor.shape: (ch, h, w) -> (h, w)
-        avg_img = tensor2d_to_image(avg, color)
+    avg_img = tensor_to_averaged_image(tensor, average_type, color)
+    if avg_img is not None:
         canvases.append(avg_img)
     
     for chs in each_slice(range(max_ch), grid_x * grid_y):
@@ -132,3 +131,37 @@ def get_grid_num(layer: str, width: int, height: int):
             n[1] //= 2
     
     return n[0] // w, n[1] // h
+
+def averaged_tensor(
+    tensor: Tensor,
+    average_type: str|None,
+):
+    average_type = (
+        '' if average_type is None
+        else average_type.lower()
+    )
+    
+    avg = None
+    
+    if len(average_type) != 0:
+        if average_type == 'sum':
+            avg = torch.mean(tensor, 0) # tensor.shape: (ch, h, w) -> (h, w)
+        elif average_type == '1-norm':
+            avg = torch.linalg.vector_norm(tensor, dim=0, ord=1) / tensor.shape[0]
+        elif average_type == '2-norm':
+            avg = torch.linalg.vector_norm(tensor, dim=0, ord=2) / tensor.shape[0]
+
+    return avg
+    
+def tensor_to_averaged_image(
+    tensor: Tensor,
+    average_type: str|None,
+    color: Colorizer
+):
+    avg = averaged_tensor(tensor, average_type)
+    
+    if avg is not None:
+        avg_img = tensor2d_to_image(avg, color)
+        return avg_img
+    else:
+        return None

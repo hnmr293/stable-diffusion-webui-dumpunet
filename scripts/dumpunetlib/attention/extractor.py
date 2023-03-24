@@ -151,7 +151,7 @@ class AttentionExtractor(FeatureExtractorBase):
         p: StableDiffusionProcessing,
         builder,
         extracted_features: MultiImageFeatures[AttnFeatureInfo],
-        add_average: bool,
+        average_type: str|None,
         color: Colorizer
     ):
         if not self.enabled: return
@@ -161,9 +161,9 @@ class AttentionExtractor(FeatureExtractorBase):
             print(E("Attention: no images are extracted"), file=sys.stderr, end="", flush=False)
             print("\033[0m", file=sys.stderr)
             return
-        return super().add_images(p, builder, extracted_features, add_average, color)
+        return super().add_images(p, builder, extracted_features, average_type, color)
     
-    def feature_to_grid_images(self, feature: AttnFeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, add_average: bool, color: Colorizer):
+    def feature_to_grid_images(self, feature: AttnFeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, average_type: str|None, color: Colorizer):
         w, h, ch = get_shape(layer, width, height)
         images = []
         
@@ -172,7 +172,7 @@ class AttentionExtractor(FeatureExtractorBase):
             heads_k, ch_k, n_k = k.shape
             assert ch_k % 77 == 0, f"ch_k={ch_k}"
             k1 = rearrange(k, 'a t n -> a n t').contiguous()
-            k_images = tutils.tensor_to_image(k1, 1, heads_k, color, add_average)
+            k_images = tutils.tensor_to_image(k1, 1, heads_k, color, average_type)
             images.extend(k_images)
             del k1
         
@@ -182,14 +182,13 @@ class AttentionExtractor(FeatureExtractorBase):
             assert ch_qk % 77 == 0, f"ch_qk={ch_qk}"
             assert w * h == n_qk, f"w={w}, h={h}, n_qk={n_qk}"
             qk1 = rearrange(qk, 'a t (h w) -> (a t) h w', h=h).contiguous()
-            qk_images = tutils.tensor_to_image(qk1, ch_qk, heads_qk, color, False)
-            if add_average:
-                # shape = (ch, h, w)
-                qk_avg = torch.mean(
-                    rearrange(qk, 'a t (h w) -> a t h w', h=h).contiguous(),
-                    0
-                )
-                qk_avg_image = tutils.tensor_to_image(qk_avg, ch_qk, 1, color, False)
+            qk_images = tutils.tensor_to_image(qk1, ch_qk, heads_qk, color, average_type=None)
+            qk_avg = tutils.averaged_tensor(
+                rearrange(qk, 'a t (h w) -> a t h w', h=h).contiguous(),
+                average_type
+            )
+            if qk_avg is not None:
+                qk_avg_image = tutils.tensor_to_image(qk_avg, ch_qk, 1, color, average_type=None)
                 qk_images = qk_avg_image + qk_images
             images.extend(qk_images)
             del qk1
@@ -200,7 +199,7 @@ class AttentionExtractor(FeatureExtractorBase):
             assert w * h == n_vqk, f"w={w}, h={h}, n_vqk={n_vqk}"
             assert ch == ch_vqk, f"ch={ch}, ch_vqk={ch_vqk}"
             vqk1 = rearrange(vqk, '(h w) c -> c h w', h=h).contiguous()
-            vqk_images = tutils.tensor_to_grid_images(vqk1, layer, width, height, color, add_average)
+            vqk_images = tutils.tensor_to_grid_images(vqk1, layer, width, height, color, average_type)
             images.extend(vqk_images)
             del vqk1
         

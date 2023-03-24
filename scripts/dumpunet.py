@@ -120,7 +120,7 @@ class Script(scripts.Script):
             unet_features_enabled: bool,
             layer_input: str,
             step_input: str,
-            favg: bool,
+            favg: str,
             color_: str, colorspace: str,
             fr: str, fg: str, fb: str,
             fh: str, fs: str, fl: str,
@@ -131,7 +131,7 @@ class Script(scripts.Script):
             attn_enabled: bool,
             attn_layers: str,
             attn_steps: str,
-            aavg: bool,
+            aavg: str,
             attn_vqks: list[str],
             attn_color_: str, attn_cs: str,
             ar: str, ag: str, ab: str,
@@ -144,7 +144,7 @@ class Script(scripts.Script):
             layerprompt_diff_enabled: bool,
             lp_diff_layers: str,
             lp_diff_steps: str,
-            lavg: bool,
+            lavg: str,
             lp_diff_color_: str, lcs: str,
             lr: str, lg: str, lb: str,
             lh: str, ls: str, ll: str,
@@ -163,6 +163,13 @@ class Script(scripts.Script):
         color =         Colorizer(color_, colorspace,   (fr, fg, fb), (fh, fs, fl),  ftrans, (flmin, flmax), (fsig_gain, fsig_offset))
         attn_color =    Colorizer(attn_color_, attn_cs, (ar, ag, ab), (ah, as_, al), atrans, (almin, almax), (asig_gain, asig_offset))
         lp_diff_color = Colorizer(lp_diff_color_, lcs,  (lr, lg, lb), (lh, ls, ll) , ltrans, (llmin, llmax), (lsig_gain, lsig_offset))
+        
+        if favg is None or favg == 'disable' or favg == '':
+            favg = ''
+        if aavg is None or aavg == 'disable' or aavg == '':
+            aavg = ''
+        if lavg is None or lavg == 'disable' or lavg == '':
+            lavg = ''
         
         ex = FeatureExtractor(
             self,

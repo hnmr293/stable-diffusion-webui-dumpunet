@@ -12,7 +12,7 @@ from scripts.dumpunetlib import layerinfo
 class OutputSetting:
     layers: Textbox
     steps: Textbox
-    average: Checkbox
+    average: Radio
     colorize: Radio
     colorspace: Radio
     R: Textbox
@@ -43,9 +43,10 @@ class OutputSetting:
                 elem_id=id("steps")
             )
         
-        avg = Checkbox(
-            value=True,
-            label="Show averaged map",
+        avg_type = Radio(
+            choices=['disable', 'sum', '1-norm', '2-norm'],
+            value='disable',
+            label='Show averaged map',
             elem_id=id("average")
         )
         
@@ -110,7 +111,7 @@ class OutputSetting:
         return OutputSetting(
             layers,
             steps,
-            avg,
+            avg_type,
             colorize,
             colorspace,
             r, g, b,
