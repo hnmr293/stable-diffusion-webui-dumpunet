@@ -16,7 +16,7 @@
 #dumpunet-txt2img-layerprompt-checkbox,
 #dumpunet-img2img-layerprompt-checkbox {
     /* background-color: #fff8f0; */
-    background-color: rgb(255 248 240 / var(--tw-bg-opacity));
+    background-color: rgb(255 248 240);
 }
 
 .dark #dumpunet-txt2img-features-checkbox,
@@ -27,7 +27,7 @@
 .dark #dumpunet-img2img-layerprompt-checkbox {
     /*background-color: inherit;
     filter: contrast(1.5);*/
-    background-color: rgb(59 77 103 / var(--tw-bg-opacity));
+    background-color: rgb(59 77 103);
 }
 
 .dumpunet-tooltip {
@@ -40,17 +40,17 @@
     right: 0;
     font-family: monospace;
     font-size: x-small;
-    background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+    background-color: rgb(255 255 255);
     z-index: 500;
     width: auto;
     /* max-width: 75%; */
-    border: 1px solid rgb(204 204 204 / var(--tw-bg-opacity));
+    border: 1px solid rgb(204 204 204);
     padding: 0.5em 1em;
 }
 
 .dark .dumpunet-tooltip-parent:hover .dumpunet-tooltip {
-    background-color: rgb(59 77 103 / var(--tw-bg-opacity));
-    border-color: rgb(128 128 128 / var(--tw-bg-opacity));
+    background-color: rgb(59 77 103);
+    border-color: rgb(128 128 128);
 }
 
 #dumpunet-txt2img-features-colorization-method .dumpunet-tooltip,
