@@ -220,7 +220,7 @@ class Script(scripts.Script):
             # layer prompt enabled
             proc2, features2, diff2, attn2 = exec(p2, lp, [ex, exlp, at])
             builder2 = ProcessedBuilder()
-            builder2.add_proc(proc1)
+            builder2.add_proc(proc2)
             ex.add_images(p2, builder2, features2, favg, color)
             at.add_images(p2, builder2, attn2, aavg, attn_color)
             
