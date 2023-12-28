@@ -16,6 +16,12 @@ from scripts.dumpunetlib.colorizer import Colorizer
 if TYPE_CHECKING:
     from scripts.dumpunet import Script
 
+try:
+    import modules.images
+    module_images_loaded = True
+except ImportError:
+    module_images_loaded = False
+
 TInfo = TypeVar("TInfo")
 
 class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
@@ -78,7 +84,8 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
         builder: ProcessedBuilder,
         extracted_features: MultiImageFeatures[TInfo],
         average_type: str|None,
-        color: Colorizer
+        color: Colorizer,
+        name: str = "",
     ):
         
         if not self.enabled:
@@ -104,6 +111,12 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
                     canvases = self.feature_to_grid_images(feature, layer, idx, step, p.width, p.height, average_type, color)
                     for canvas in canvases:
                         builder.add_ref(idx, canvas, None, {"Layer Name": layer, "Feature Steps": step})
+                        if module_images_loaded:
+                            if name is None or len(name) == 0:
+                                basename = f"-dumpunet-{layer}-{step:03}"
+                            else:
+                                basename = f"-dumpunet-{name}-{layer}-{step:03}"
+                            modules.images.save_image(canvas, p.outpath_samples, "", p.seeds[idx], p.prompts[idx], shared.opts.samples_format, p=p, suffix=basename)
                     
                     if self.path is not None:
                         basename = f"{idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"

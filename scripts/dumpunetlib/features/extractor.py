@@ -75,6 +75,10 @@ class FeatureExtractor(FeatureExtractorBase[FeatureInfo]):
     
     def save_features(self, feature: FeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, path: str, basename: str):
         save_features(feature, path, basename)
+    
+    def add_images(self, *args, **kwargs):
+        kwargs['name'] = 'unet'
+        super().add_images(*args, **kwargs)
         
 def get_unet_layer(unet, layername: str) -> nn.modules.Module:
     idx = layerinfo.input_index(layername)

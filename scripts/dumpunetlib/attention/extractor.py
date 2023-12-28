@@ -161,7 +161,7 @@ class AttentionExtractor(FeatureExtractorBase):
             print(E("Attention: no images are extracted"), file=sys.stderr, end="", flush=False)
             print("\033[0m", file=sys.stderr)
             return
-        return super().add_images(p, builder, extracted_features, average_type, color)
+        return super().add_images(p, builder, extracted_features, average_type, color, name="attn")
     
     def feature_to_grid_images(self, feature: AttnFeatureInfo, layer: str, img_idx: int, step: int, width: int, height: int, average_type: str|None, color: Colorizer):
         w, h, ch = get_shape(layer, width, height)
