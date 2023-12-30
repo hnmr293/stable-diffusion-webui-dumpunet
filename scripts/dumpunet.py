@@ -83,6 +83,8 @@ class Script(scripts.Script):
             result.lp.diff_dump.enabled,
             result.lp.diff_dump.path,
             
+            result.debug.save_image,
+            result.debug.image_dir,
             result.debug.log,
         ]
     
@@ -152,6 +154,8 @@ class Script(scripts.Script):
             diff_path_on: bool,
             diff_path: str,
             
+            save_images: bool,
+            image_dir: str,
             debug: bool,
     ):
         
@@ -171,13 +175,20 @@ class Script(scripts.Script):
         if lavg is None or lavg == 'disable' or lavg == '':
             lavg = ''
         
+        if image_dir is None or len(image_dir) == 0:
+            image_dir = p.outpath_samples
+        
+        if not save_images:
+            image_dir = None
+        
         ex = FeatureExtractor(
             self,
             unet_features_enabled,
             p.steps,
             layer_input,
             step_input,
-            path if path_on else None
+            path if path_on else None,
+            image_dir,
         )
         
         exlp = FeatureExtractor(
@@ -186,7 +197,8 @@ class Script(scripts.Script):
             p.steps,
             lp_diff_layers,
             lp_diff_steps,
-            path if path_on else None
+            path if path_on else None,
+            image_dir,
         )
         
         lp = LayerPrompt(
@@ -201,7 +213,8 @@ class Script(scripts.Script):
             attn_layers,
             attn_steps,
             attn_vqks,
-            attn_path if attn_path_on else None
+            attn_path if attn_path_on else None,
+            image_dir,
         )
         
         if layerprompt_enabled and layerprompt_diff_enabled:

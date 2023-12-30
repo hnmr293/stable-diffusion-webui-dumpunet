@@ -39,6 +39,7 @@ class AttentionExtractor(FeatureExtractorBase):
         step_input: str,
         features: list[str],
         path: str|None,
+        image_path: str|None,
     ):
         if features is None or len(features) == 0:
             if enabled:
@@ -47,7 +48,7 @@ class AttentionExtractor(FeatureExtractorBase):
                 print(E("Attention: Disabled because no features are selected. Select features in <Output features>."), file=sys.stderr, end="", flush=False)
                 print("\033[0m", file=sys.stderr)
         
-        super().__init__(runner, enabled, total_steps, layer_input, step_input, path)
+        super().__init__(runner, enabled, total_steps, layer_input, step_input, path, image_path)
         self.features_to_save = features
         self.extracted_features = MultiImageFeatures()
     

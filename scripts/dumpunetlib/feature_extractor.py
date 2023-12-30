@@ -37,6 +37,9 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
     
     # dump path
     path: str|None
+
+    # image saving path
+    image_path: str|None
     
     def __init__(
         self,
@@ -45,7 +48,8 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
         total_steps: int,
         layer_input: str,
         step_input: str,
-        path: str|None
+        path: str|None,
+        image_path: str|None,
     ):
         super().__init__(runner, enabled)
         
@@ -74,6 +78,16 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
                 os.makedirs(path, exist_ok=True)
         
         self.path = path
+
+        if image_path is not None:
+            assert image_path != "", E("<Image path> must not be empty.")
+            # mkdir -p image_path
+            if os.path.exists(image_path):
+                assert os.path.isdir(image_path), E("<Image path> already exists and is not a directory.")
+            else:
+                os.makedirs(image_path, exist_ok=True)
+        
+        self.image_path = image_path
     
     def on_setup(self):
         self.extracted_features = MultiImageFeatures()
@@ -111,12 +125,7 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
                     canvases = self.feature_to_grid_images(feature, layer, idx, step, p.width, p.height, average_type, color)
                     for canvas in canvases:
                         builder.add_ref(idx, canvas, None, {"Layer Name": layer, "Feature Steps": step})
-                        if module_images_loaded:
-                            if name is None or len(name) == 0:
-                                basename = f"-dumpunet-{layer}-{step:03}"
-                            else:
-                                basename = f"-dumpunet-{name}-{layer}-{step:03}"
-                            modules.images.save_image(canvas, p.outpath_samples, "", p.seeds[idx], p.prompts[idx], shared.opts.samples_format, p=p, suffix=basename)
+                        self._save_generated_image(p, canvas, name, idx, layer, step)
                     
                     if self.path is not None:
                         basename = f"{idx:03}-{layer}-{step:03}-{{ch:04}}-{t0}"
@@ -138,4 +147,42 @@ class FeatureExtractorBase(Generic[TInfo], ExtractorBase):
         while len(proc.all_subseeds) < len(proc.all_seeds):
             proc.all_subseeds.append(proc.all_subseeds[0] if 0 < len(proc.all_subseeds) else 0)
         return proc
-        
+    
+    def _save_generated_image(self, p, image, prefix: str, image_index: int, layer: str, step: int):
+        if module_images_loaded and self.image_path:
+            if prefix is None or len(prefix) == 0:
+                basename = f"-dumpunet-{layer}-{step:03}"
+            else:
+                basename = f"-dumpunet-{prefix}-{layer}-{step:03}"
+            
+            orig = modules.images.get_next_sequence_number
+            try:
+                # hook image number
+                #def get_next_sequence_number(path: str, basename: str):
+                #    # in processing.py, `images.save_image` is called with one of
+                #    #   path = p.outpath_samples
+                #    #          p.outpath_grids (for grid)
+                #    #          opts.outdir_init_images (for img2img)
+                #    # so the target image of a image saving here will be stored
+                #    # always in p.outpath_samples.
+                #    basecount = orig(p.outpath_samples, basename)
+                #    return basecount - 1
+                assert self.image_path == p.outpath_samples, E(f"not implemented (image_path={repr(self.image_path)})")
+                def get_next_sequence_number(*args, **kwargs):
+                    basecount = orig(*args, **kwargs)
+                    return basecount - 1
+                modules.images.get_next_sequence_number = get_next_sequence_number
+                
+                modules.images.save_image(
+                    image,
+                    self.image_path,
+                    "",
+                    p.seeds[image_index],
+                    p.prompts[image_index],
+                    shared.opts.samples_format,
+                    p=p,
+                    suffix=basename
+                )
+
+            finally:
+                modules.images.get_next_sequence_number = orig

@@ -25,8 +25,9 @@ class FeatureExtractor(FeatureExtractorBase[FeatureInfo]):
         layer_input: str,
         step_input: str,
         path: str|None,
+        image_path: str|None,
     ):
-        super().__init__(runner, enabled, total_steps, layer_input, step_input, path)
+        super().__init__(runner, enabled, total_steps, layer_input, step_input, path, image_path)
         
     def hook_unet(self, p: StableDiffusionProcessing, unet: nn.Module):
         

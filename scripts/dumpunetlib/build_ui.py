@@ -179,6 +179,8 @@ class LayerPrompt:
 @dataclass
 class Debug:
     tab: Tab
+    save_image: Checkbox
+    image_dir: Textbox
     log: Checkbox
 
 @dataclass
@@ -294,10 +296,22 @@ def build_layerprompt(id_: Callable[[str],str]):
 
 def build_debug(runner, id: Callable[[str],str]):
     with Tab("Settings") as tab:
-        debug = Checkbox(
-            label="log to stderr",
-            value=runner.debug
-        )
+        with Group():
+            save_images = Checkbox(
+                label="Save generated images",
+                value=False
+            )
+            image_dir = Textbox(
+                label="Save path (if empty, images will be saved to default output directory)",
+                placeholder="eg. /home/hnmr/images/",
+                visible=False,
+            )
+        
+        with Group():
+            debug = Checkbox(
+                label="log to stderr",
+                value=runner.debug
+            )
         
         def set_debug(x):
             runner.debug = x
@@ -309,6 +323,8 @@ def build_debug(runner, id: Callable[[str],str]):
     
     return Debug(
         tab,
+        save_images,
+        image_dir,
         debug
     )
 
